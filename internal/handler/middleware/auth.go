@@ -16,13 +16,14 @@ var (
 )
 
 type UserRole string
+type contextKey string
 
 const (
 	Employee  UserRole = "EMPLOYEE"
 	Moderator UserRole = "MODERATOR"
 
-	authorisationPrefix = "Bearer "
-	roleKey             = "role"
+	authorisationPrefix            = "Bearer "
+	roleKey             contextKey = "role"
 )
 
 func hasRequiredRole(userRole UserRole, requiredRoles []UserRole) bool {
