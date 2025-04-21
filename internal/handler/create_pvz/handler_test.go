@@ -17,9 +17,9 @@ import (
 	"pvz-service/internal/usecase/create_pvz"
 
 	"github.com/go-playground/validator/v10"
-	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/mock/gomock"
 )
 
 func TestCreatePVZ(t *testing.T) {

@@ -10,11 +10,11 @@ import (
 	mockdb "pvz-service/internal/infrastructure/repository/mocks"
 	"pvz-service/internal/model/entity"
 
-	"github.com/golang/mock/gomock"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/pashagolub/pgxmock/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/mock/gomock"
 )
 
 func TestDeleteProduct(t *testing.T) {

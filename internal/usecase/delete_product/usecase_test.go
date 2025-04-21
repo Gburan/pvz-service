@@ -13,9 +13,9 @@ import (
 	pvz "pvz-service/internal/usecase/contract/repository/pvz/mocks"
 	reception "pvz-service/internal/usecase/contract/repository/reception/mocks"
 
-	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/mock/gomock"
 )
 
 func TestDeleteProduct(t *testing.T) {

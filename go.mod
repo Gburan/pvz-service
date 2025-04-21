@@ -7,7 +7,6 @@ require (
 	github.com/go-playground/validator/v10 v10.26.0
 	github.com/golang-jwt/jwt/v4 v4.5.2
 	github.com/golang-migrate/migrate/v4 v4.18.2
-	github.com/golang/mock v1.6.0
 	github.com/gorilla/mux v1.8.1
 	github.com/ilyakaznacheev/cleanenv v1.5.0
 	github.com/jackc/pgx/v5 v5.7.4
@@ -15,6 +14,7 @@ require (
 	github.com/pressly/goose/v3 v3.24.2
 	github.com/stretchr/testify v1.10.0
 	github.com/testcontainers/testcontainers-go v0.36.0
+	go.uber.org/mock v0.5.1
 	golang.org/x/crypto v0.37.0
 )
 

@@ -14,9 +14,9 @@ import (
 	"pvz-service/internal/usecase/login_user"
 
 	"github.com/go-playground/validator/v10"
-	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/mock/gomock"
 )
 
 func TestLoginUser(t *testing.T) {
