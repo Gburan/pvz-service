@@ -1,0 +1,45 @@
+version: "3.9"
+
+# docker-compose up -d
+# docker-compose down
+# docker rm $(docker ps -a -q) && docker volume prune -f
+
+# psql -h localhost -U postgres -d pvz-service
+# \dt
+# SELECT * FROM pvz;
+# SELECT * FROM reception;
+# SELECT * FROM product;
+# SELECT * FROM pvzuser;
+
+services:
+
+  pvz-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: pvz-service_app_container
+    environment:
+      - POSTGRES_CONN=postgres://postgres:postgres@pvz-service-db:5432/pvz-service
+    restart: unless-stopped
+    depends_on:
+      pvz-service-db:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+
+  pvz-service-db:
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=pvz-service
+      - POSTGRES_HOST_AUTH_METHOD=md5
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d pvz-service" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    expose:
+      - "5432"

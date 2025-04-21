@@ -1,0 +1,7 @@
+.git/
+.gitignore
+tmp/
+задание
+*_test.go
+**/mocks/
+Dockerfile

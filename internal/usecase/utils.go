@@ -1,0 +1,30 @@
+package usecase
+
+import "errors"
+
+var (
+	ErrCloseReception          = errors.New("failed to close reception")
+	ErrGetPVZByID              = errors.New("failed to get pvz by id")
+	ErrGetReception            = errors.New("failed to get reception for")
+	ErrGetReceptions           = errors.New("failed to get receptions")
+	ErrNotPageTooBig           = errors.New("theres not enough pvzs to offset")
+	ErrGetProduct              = errors.New("failed to get product")
+	ErrGetProducts             = errors.New("failed to get products")
+	ErrNotFoundReception       = errors.New("no reception for")
+	ErrNotFoundUser            = errors.New("no such user")
+	ErrNotFoundProducts        = errors.New("no any products")
+	ErrNotFoundPVZ             = errors.New("no such pvz for id")
+	ErrAddProduct              = errors.New("failed to add product")
+	ErrNotFoundOpenedReception = errors.New("not found opened reception for")
+	ErrFoundOpenedReception    = errors.New("found opened reception for")
+	ErrAddPVZ                  = errors.New("failed to add PVZ")
+	ErrGetUser                 = errors.New("failed to get user")
+	ErrUserAlreadyExist        = errors.New("user already exist")
+	ErrAddUser                 = errors.New("failed to add user")
+	ErrIncorrectPass           = errors.New("wrong user pass")
+	ErrGenHashedPass           = errors.New("error while generate hashed pass")
+	ErrGetPVZs                 = errors.New("failed to get PVZs")
+	ErrDeleteProduct           = errors.New("failed to delete product")
+	ErrNotFoundProduct         = errors.New("no product for pvz")
+	ErrStartReception          = errors.New("failed to start reception")
+)

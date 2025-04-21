@@ -1,0 +1,17 @@
+server:
+  address: :8080
+postgres:
+  conn: postgres://postgres:postgres@localhost:5432/pvz-service
+app:
+  allowed_categories:
+    - электроника
+    - одежда
+    - обувь
+  allowed_cities:
+    - Москва
+    - Санкт-Петербург
+    - Казань
+  allowed_users:
+    - moderator
+    - employee
+  jwt_token: 6a627a7fb025e2c5bed303316a3a1c801c1178bed303316a627a7fb67523a1c8
