@@ -2,22 +2,24 @@ package register_user
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
-	"log"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 
+	dto "pvz-service/internal/generated/api/v1/dto/handler"
 	register_user2 "pvz-service/internal/handler/register_user/mocks"
 	"pvz-service/internal/model/entity"
 	usecase2 "pvz-service/internal/usecase"
 	"pvz-service/internal/usecase/register_user"
 
 	"github.com/go-playground/validator/v10"
-	"github.com/golang/mock/gomock"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/mock/gomock"
 )
 
 func TestRegisterUser(t *testing.T) {
@@ -35,7 +37,8 @@ func TestRegisterUser(t *testing.T) {
 		return false
 	})
 	if err != nil {
-		log.Fatal(err)
+		slog.Error(err.Error())
+		os.Exit(1)
 	}
 
 	validEmail := "test@example.com"
@@ -49,14 +52,14 @@ func TestRegisterUser(t *testing.T) {
 
 	retUser := &register_user.Out{
 		User: entity.User{
-			ID:    "6d132f66-dcfe-493e-965d-95c99e5f325d",
+			Uuid:  uuid.New(),
 			Email: validEmail,
 			Role:  validRole,
 		},
 	}
 
-	successResponse := registerUserOut{
-		Uuid:  retUser.User.ID,
+	successResponse := dto.RegisterUserOut{
+		Uuid:  retUser.User.Uuid,
 		Email: retUser.User.Email,
 		Role:  retUser.User.Role,
 	}
@@ -66,17 +69,17 @@ func TestRegisterUser(t *testing.T) {
 		setupMock     func(*register_user2.Mockusecase)
 		requestBody   interface{}
 		expectedCode  int
-		expected      *registerUserOut
+		expected      *dto.RegisterUserOut
 		expectedError map[string]string
 	}{
 		{
 			name: "successful registration",
 			setupMock: func(mockUsecase *register_user2.Mockusecase) {
 				mockUsecase.EXPECT().
-					Run(context.TODO(), usecaseIn).
+					Run(gomock.Any(), usecaseIn).
 					Return(retUser, nil)
 			},
-			requestBody: registerUserIn{
+			requestBody: dto.RegisterUserIn{
 				Email:    validEmail,
 				Password: validPassword,
 				Role:     validRole,
@@ -87,7 +90,7 @@ func TestRegisterUser(t *testing.T) {
 		{
 			name:      "validation failed - empty email",
 			setupMock: func(mockUsecase *register_user2.Mockusecase) {},
-			requestBody: registerUserIn{
+			requestBody: dto.RegisterUserIn{
 				Email:    "",
 				Password: validPassword,
 				Role:     validRole,
@@ -100,7 +103,7 @@ func TestRegisterUser(t *testing.T) {
 		{
 			name:      "validation failed - invalid email format",
 			setupMock: func(mockUsecase *register_user2.Mockusecase) {},
-			requestBody: registerUserIn{
+			requestBody: dto.RegisterUserIn{
 				Email:    "invalid_email",
 				Password: validPassword,
 				Role:     validRole,
@@ -113,7 +116,7 @@ func TestRegisterUser(t *testing.T) {
 		{
 			name:      "validation failed - empty password",
 			setupMock: func(mockUsecase *register_user2.Mockusecase) {},
-			requestBody: registerUserIn{
+			requestBody: dto.RegisterUserIn{
 				Email:    validEmail,
 				Password: "",
 				Role:     validRole,
@@ -126,7 +129,7 @@ func TestRegisterUser(t *testing.T) {
 		{
 			name:      "validation failed - empty role",
 			setupMock: func(mockUsecase *register_user2.Mockusecase) {},
-			requestBody: registerUserIn{
+			requestBody: dto.RegisterUserIn{
 				Email:    validEmail,
 				Password: validPassword,
 				Role:     "",
@@ -140,10 +143,10 @@ func TestRegisterUser(t *testing.T) {
 			name: "usecase error - user already exists",
 			setupMock: func(mockUsecase *register_user2.Mockusecase) {
 				mockUsecase.EXPECT().
-					Run(context.TODO(), usecaseIn).
+					Run(gomock.Any(), usecaseIn).
 					Return(nil, usecase2.ErrUserAlreadyExist)
 			},
-			requestBody: registerUserIn{
+			requestBody: dto.RegisterUserIn{
 				Email:    validEmail,
 				Password: validPassword,
 				Role:     validRole,
@@ -157,10 +160,10 @@ func TestRegisterUser(t *testing.T) {
 			name: "usecase error - failed to get user",
 			setupMock: func(mockUsecase *register_user2.Mockusecase) {
 				mockUsecase.EXPECT().
-					Run(context.TODO(), usecaseIn).
+					Run(gomock.Any(), usecaseIn).
 					Return(nil, usecase2.ErrGetUser)
 			},
-			requestBody: registerUserIn{
+			requestBody: dto.RegisterUserIn{
 				Email:    validEmail,
 				Password: validPassword,
 				Role:     validRole,
@@ -174,10 +177,10 @@ func TestRegisterUser(t *testing.T) {
 			name: "usecase error - failed to generate password hash",
 			setupMock: func(mockUsecase *register_user2.Mockusecase) {
 				mockUsecase.EXPECT().
-					Run(context.TODO(), usecaseIn).
+					Run(gomock.Any(), usecaseIn).
 					Return(nil, usecase2.ErrGenHashedPass)
 			},
-			requestBody: registerUserIn{
+			requestBody: dto.RegisterUserIn{
 				Email:    validEmail,
 				Password: validPassword,
 				Role:     validRole,
@@ -191,10 +194,10 @@ func TestRegisterUser(t *testing.T) {
 			name: "usecase error - failed to add user",
 			setupMock: func(mockUsecase *register_user2.Mockusecase) {
 				mockUsecase.EXPECT().
-					Run(context.TODO(), usecaseIn).
+					Run(gomock.Any(), usecaseIn).
 					Return(nil, usecase2.ErrAddUser)
 			},
-			requestBody: registerUserIn{
+			requestBody: dto.RegisterUserIn{
 				Email:    validEmail,
 				Password: validPassword,
 				Role:     validRole,
@@ -235,7 +238,7 @@ func TestRegisterUser(t *testing.T) {
 			assert.Equal(t, tt.expectedCode, w.Code)
 
 			if tt.expected != nil {
-				var response registerUserOut
+				var response dto.RegisterUserOut
 				err := json.NewDecoder(w.Body).Decode(&response)
 				require.NoError(t, err)
 				assert.Equal(t, tt.expected.Uuid, response.Uuid)

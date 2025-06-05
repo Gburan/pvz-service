@@ -1,8 +1,9 @@
 package middleware
 
 import (
-	"log"
+	"log/slog"
 	"net/http"
+	"runtime/debug"
 	"time"
 )
 
@@ -11,10 +12,12 @@ func PanicMiddleware(next http.Handler) http.HandlerFunc {
 		start := time.Now()
 		defer func() {
 			if err := recover(); err != nil {
-				log.Fatal("New request",
+				slog.Error(
+					"Caught panic",
 					"method", r.Method,
 					"url", r.URL.Path,
 					"time", time.Since(start),
+					"stack trace", string(debug.Stack()),
 				)
 			}
 		}()

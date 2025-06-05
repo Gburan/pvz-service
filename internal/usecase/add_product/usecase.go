@@ -4,8 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 
 	repository2 "pvz-service/internal/infrastructure/repository"
+	"pvz-service/internal/logging"
+	"pvz-service/internal/metrics"
+	"pvz-service/internal/model/entity"
 	usecase2 "pvz-service/internal/usecase"
 	"pvz-service/internal/usecase/contract/repository/product"
 	"pvz-service/internal/usecase/contract/repository/pvz"
@@ -35,29 +39,41 @@ func NewUsecase(
 }
 
 func (u *usecase) Run(ctx context.Context, req In) (*Out, error) {
-	_, err := u.repoPVZ.GetPVZByID(ctx, req.PVZID)
+	slog.DebugContext(ctx, "Call GetPVZByID")
+	getPvz, err := u.repoPVZ.GetPVZByID(ctx, entity.PVZ{
+		Uuid: req.PVZID,
+	})
 	if err != nil {
 		if errors.Is(err, repository2.ErrPVZNotFound) {
-			return nil, fmt.Errorf("%w: %s", usecase2.ErrNotFoundPVZ, req.PVZID)
+			return nil, logging.WrapError(ctx, fmt.Errorf("%w: %s", usecase2.ErrNotFoundPVZ, req.PVZID))
 		}
-		return nil, fmt.Errorf("%w: %s", usecase2.ErrGetPVZByID, req.PVZID)
+		return nil, logging.WrapError(ctx, fmt.Errorf("%w: %s", usecase2.ErrGetPVZByID, req.PVZID))
 	}
 
-	lastReception, err := u.repoReception.GetLastReceptionPVZ(ctx, req.PVZID)
+	slog.DebugContext(ctx, "Call GetLastReceptionPVZ")
+	lastReception, err := u.repoReception.GetLastReceptionPVZ(ctx, entity.Reception{
+		PVZID: req.PVZID,
+	})
 	if err != nil {
 		if errors.Is(err, repository2.ErrReceptionNotFound) {
-			return nil, fmt.Errorf("%w: %s", usecase2.ErrNotFoundReception, req.PVZID)
+			return nil, logging.WrapError(ctx, fmt.Errorf("%w: %s", usecase2.ErrNotFoundReception, req.PVZID))
 		}
-		return nil, fmt.Errorf("%w: %s", usecase2.ErrGetReception, req.PVZID)
+		return nil, logging.WrapError(ctx, fmt.Errorf("%w: %s", usecase2.ErrGetReception, req.PVZID))
 	}
 	if lastReception.Status == statusReceptionDone {
-		return nil, fmt.Errorf("%w: %s", usecase2.ErrNotFoundOpenedReception, req.PVZID)
+		return nil, logging.WrapError(ctx, fmt.Errorf("%w: %s", usecase2.ErrNotFoundOpenedReception, req.PVZID))
 	}
 
-	record, err := u.repoProduct.AddProduct(ctx, lastReception.Uuid, req.Type)
+	slog.DebugContext(ctx, "Call AddProduct")
+	prodOut, err := u.repoProduct.AddProduct(ctx, entity.Product{
+		Type:        req.Type,
+		ReceptionID: lastReception.Uuid,
+	})
 	if err != nil {
-		return nil, fmt.Errorf("%w: %s", usecase2.ErrAddProduct, req.PVZID)
+		return nil, logging.WrapError(ctx, fmt.Errorf("%w: %s", usecase2.ErrAddProduct, req.PVZID))
 	}
 
-	return &Out{Product: *record}, nil
+	metrics.IncCreatedProducts(getPvz.Uuid)
+	slog.DebugContext(ctx, "Usecase Addproduct success")
+	return &Out{Product: *prodOut}, nil
 }

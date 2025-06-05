@@ -4,11 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 
 	repository2 "pvz-service/internal/infrastructure/repository"
 	"pvz-service/internal/model/entity"
+	"pvz-service/internal/usecase/contract/nower"
 
 	"github.com/Masterminds/squirrel"
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -18,80 +21,89 @@ const (
 	idColumnName               = "id"
 	registrationDateColumnName = "registration_date"
 	cityColumnName             = "city"
+
+	returnAll = "RETURNING *"
 )
 
 type repository struct {
-	db repository2.DBContract
+	db    repository2.DBContract
+	nower nower.Nower
 }
 
-func NewRepository(pool *pgxpool.Pool) *repository {
+func NewRepository(pool *pgxpool.Pool, nower nower.Nower) *repository {
 	return &repository{
-		db: pool,
+		db:    pool,
+		nower: nower,
 	}
 }
 
-func (r *repository) SavePVZ(ctx context.Context, city string) (*entity.PVZ, error) {
+func (r *repository) SavePVZ(ctx context.Context, pvz entity.PVZ) (*entity.PVZ, error) {
+	if pvz.Uuid == uuid.Nil {
+		pvz.Uuid = uuid.New()
+	}
+	if pvz.RegistrationDate.IsZero() {
+		pvz.RegistrationDate = r.nower.Now()
+	}
+
 	queryBuilder := squirrel.Insert(pvzTableName).
 		PlaceholderFormat(squirrel.Dollar).
-		Columns(cityColumnName).
-		Values(city).
-		Suffix(
-			fmt.Sprintf("RETURNING %s, %s, %s",
-				idColumnName,
-				registrationDateColumnName,
-				cityColumnName,
-			),
-		)
+		Columns(idColumnName, registrationDateColumnName, cityColumnName).
+		Values(pvz.Uuid, pvz.RegistrationDate, pvz.City).
+		Suffix(returnAll)
 
 	sql, args, err := queryBuilder.ToSql()
 	if err != nil {
+		slog.ErrorContext(ctx, err.Error())
 		return nil, fmt.Errorf("%w: %v", repository2.ErrBuildQuery, err)
 	}
 
 	rows, err := r.db.Query(ctx, sql, args...)
 	if err != nil {
+		slog.ErrorContext(ctx, err.Error())
 		return nil, fmt.Errorf("%w: %v", repository2.ErrExecuteQuery, err)
 	}
 	defer rows.Close()
 
-	result, err := pgx.CollectOneRow(rows, pgx.RowToStructByName[pvzDB])
+	_, err = pgx.CollectOneRow(rows, pgx.RowToStructByName[pvzDB])
 	if err != nil {
+		slog.ErrorContext(ctx, err.Error())
 		return nil, fmt.Errorf("%w: %v", repository2.ErrScanResult, err)
 	}
 
-	return &entity.PVZ{
-		Uuid:             result.Uuid,
-		RegistrationDate: result.RegistrationDate,
-		City:             result.City,
-	}, nil
+	slog.DebugContext(ctx, "Repository SavePVZ success")
+	return &pvz, nil
 }
 
-func (r *repository) GetPVZByID(ctx context.Context, pvzId string) (*entity.PVZ, error) {
+func (r *repository) GetPVZByID(ctx context.Context, pvz entity.PVZ) (*entity.PVZ, error) {
 	selectBuilder := squirrel.
 		Select(idColumnName, registrationDateColumnName, cityColumnName).
 		PlaceholderFormat(squirrel.Dollar).
 		From(pvzTableName).
-		Where(squirrel.Eq{idColumnName: pvzId})
+		Where(squirrel.Eq{idColumnName: pvz.Uuid})
 
 	sql, args, err := selectBuilder.ToSql()
 	if err != nil {
+		slog.ErrorContext(ctx, err.Error())
 		return nil, fmt.Errorf("%w: %v", repository2.ErrBuildQuery, err)
 	}
 
 	rows, err := r.db.Query(ctx, sql, args...)
 	if err != nil {
+		slog.ErrorContext(ctx, err.Error())
 		return nil, fmt.Errorf("%w: %v", repository2.ErrExecuteQuery, err)
 	}
 	defer rows.Close()
 
 	result, err := pgx.CollectOneRow(rows, pgx.RowToStructByName[pvzDB])
 	if err != nil {
+		slog.DebugContext(ctx, err.Error())
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, fmt.Errorf("%w: %v", repository2.ErrPVZNotFound, err)
 		}
 		return nil, fmt.Errorf("%w: %v", repository2.ErrScanResult, err)
 	}
 
+	slog.DebugContext(ctx, "Repository GetPVZByID success")
 	return &entity.PVZ{
 		Uuid:             result.Uuid,
 		RegistrationDate: result.RegistrationDate,
@@ -99,7 +111,7 @@ func (r *repository) GetPVZByID(ctx context.Context, pvzId string) (*entity.PVZ,
 	}, nil
 }
 
-func (r *repository) GetPVZsByIDs(ctx context.Context, pvzIds []string) (*[]entity.PVZ, error) {
+func (r *repository) GetPVZsByIDs(ctx context.Context, pvzIds []uuid.UUID) (*[]entity.PVZ, error) {
 	if len(pvzIds) == 0 {
 		return &[]entity.PVZ{}, nil
 	}
@@ -112,17 +124,20 @@ func (r *repository) GetPVZsByIDs(ctx context.Context, pvzIds []string) (*[]enti
 
 	sql, args, err := selectBuilder.ToSql()
 	if err != nil {
+		slog.ErrorContext(ctx, err.Error())
 		return nil, fmt.Errorf("%w: %v", repository2.ErrBuildQuery, err)
 	}
 
 	rows, err := r.db.Query(ctx, sql, args...)
 	if err != nil {
+		slog.ErrorContext(ctx, err.Error())
 		return nil, fmt.Errorf("%w: %v", repository2.ErrExecuteQuery, err)
 	}
 	defer rows.Close()
 
 	results, err := pgx.CollectRows(rows, pgx.RowToStructByName[pvzDB])
 	if err != nil {
+		slog.ErrorContext(ctx, err.Error())
 		return nil, fmt.Errorf("%w: %v", repository2.ErrScanResult, err)
 	}
 
@@ -135,5 +150,47 @@ func (r *repository) GetPVZsByIDs(ctx context.Context, pvzIds []string) (*[]enti
 		})
 	}
 
+	slog.DebugContext(ctx, "Repository GetPVZsByIDs success")
 	return &pvzs, nil
+}
+
+func (r *repository) GetPVZList(ctx context.Context) ([]*entity.PVZ, error) {
+	selectBuilder := squirrel.
+		Select(idColumnName, registrationDateColumnName, cityColumnName).
+		PlaceholderFormat(squirrel.Dollar).
+		From(pvzTableName)
+
+	sql, args, err := selectBuilder.ToSql()
+	if err != nil {
+		slog.ErrorContext(ctx, err.Error())
+		return nil, fmt.Errorf("%w: %v", repository2.ErrBuildQuery, err)
+	}
+
+	rows, err := r.db.Query(ctx, sql, args...)
+	if err != nil {
+		slog.ErrorContext(ctx, err.Error())
+		return nil, fmt.Errorf("%w: %v", repository2.ErrExecuteQuery, err)
+	}
+	defer rows.Close()
+
+	results, err := pgx.CollectRows(rows, pgx.RowToStructByName[pvzDB])
+	if err != nil {
+		slog.DebugContext(ctx, err.Error())
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, fmt.Errorf("%w: %v", repository2.ErrPVZNotFound, err)
+		}
+		return nil, fmt.Errorf("%w: %v", repository2.ErrScanResult, err)
+	}
+
+	pvzs := make([]*entity.PVZ, 0, len(results))
+	for _, result := range results {
+		pvzs = append(pvzs, &entity.PVZ{
+			Uuid:             result.Uuid,
+			RegistrationDate: result.RegistrationDate,
+			City:             result.City,
+		})
+	}
+
+	slog.DebugContext(ctx, "Repository GetPVZList success")
+	return pvzs, nil
 }

@@ -1,9 +1,13 @@
 package entity
 
-import "time"
+import (
+	"time"
+
+	"github.com/google/uuid"
+)
 
 type User struct {
-	ID           string
+	Uuid         uuid.UUID
 	Email        string
 	PasswordHash string
 	Role         string
@@ -20,21 +24,21 @@ type ReceptionWithProducts struct {
 }
 
 type PVZ struct {
-	Uuid             string
+	Uuid             uuid.UUID
 	RegistrationDate time.Time
 	City             string
 }
 
 type Reception struct {
-	Uuid     string
+	Uuid     uuid.UUID
 	DateTime time.Time
-	PVZID    string
+	PVZID    uuid.UUID
 	Status   string
 }
 
 type Product struct {
-	Uuid        string
+	Uuid        uuid.UUID
 	DateTime    time.Time
 	Type        string
-	ReceptionID string
+	ReceptionID uuid.UUID
 }

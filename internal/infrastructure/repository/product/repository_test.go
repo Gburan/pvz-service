@@ -9,19 +9,26 @@ import (
 	repository2 "pvz-service/internal/infrastructure/repository"
 	mockdb "pvz-service/internal/infrastructure/repository/mocks"
 	"pvz-service/internal/model/entity"
+	nower "pvz-service/internal/usecase/contract/nower/mocks"
 
-	"github.com/golang/mock/gomock"
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/pashagolub/pgxmock/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/mock/gomock"
 )
 
 func TestDeleteProduct(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	prodId := "1becb717-0ace-41e4-a711-37402f10cb51"
+	prod := entity.Product{
+		Uuid:        uuid.New(),
+		DateTime:    time.Now(),
+		Type:        "Электроника",
+		ReceptionID: uuid.New(),
+	}
 
 	tests := []struct {
 		name          string
@@ -32,7 +39,7 @@ func TestDeleteProduct(t *testing.T) {
 			name: "successful delete product",
 			setupMock: func(mockDB *mockdb.MockDBContract) {
 				mockDB.EXPECT().
-					Exec(gomock.Any(), gomock.Any(), prodId).
+					Exec(gomock.Any(), gomock.Any(), prod.Uuid.String()).
 					Return(pgconn.NewCommandTag("DELETE 1"), nil)
 			},
 			expectedError: nil,
@@ -41,7 +48,7 @@ func TestDeleteProduct(t *testing.T) {
 			name: "successful delete product",
 			setupMock: func(mockDB *mockdb.MockDBContract) {
 				mockDB.EXPECT().
-					Exec(gomock.Any(), gomock.Any(), gomock.Eq(prodId)).
+					Exec(gomock.Any(), gomock.Any(), gomock.Eq(prod.Uuid.String())).
 					Return(pgconn.NewCommandTag("DELETE 1"), nil)
 			},
 			expectedError: nil,
@@ -50,7 +57,7 @@ func TestDeleteProduct(t *testing.T) {
 			name: "error executing query",
 			setupMock: func(mockDB *mockdb.MockDBContract) {
 				mockDB.EXPECT().
-					Exec(gomock.Any(), gomock.Any(), gomock.Eq(prodId)).
+					Exec(gomock.Any(), gomock.Any(), gomock.Eq(prod.Uuid.String())).
 					Return(pgconn.NewCommandTag(""), &pgconn.PgError{
 						Code: "2281337",
 					})
@@ -62,11 +69,17 @@ func TestDeleteProduct(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockDB := mockdb.NewMockDBContract(ctrl)
-			repo := &repository{db: mockDB}
+			mockNow := nower.NewMockNower(ctrl)
+			repo := &repository{
+				db:    mockDB,
+				nower: mockNow,
+			}
 
 			tt.setupMock(mockDB)
 
-			err := repo.DeleteProduct(context.Background(), prodId)
+			err := repo.DeleteProduct(context.Background(), entity.Product{
+				Uuid: prod.Uuid,
+			})
 
 			if !errors.Is(err, tt.expectedError) {
 				t.Errorf("expected error %v, got %v", tt.expectedError, err)
@@ -79,25 +92,22 @@ func TestGetLastProductByReceptionPVZ(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	recId := "1becb717-0ace-41e4-a711-37402f10cb51"
-	currTime := time.Now()
-
-	retProduct := entity.Product{
-		Uuid:        "671353c3-d091-4de8-83f9-983fb6e34ecf",
-		DateTime:    currTime,
+	prod := entity.Product{
+		Uuid:        uuid.New(),
+		DateTime:    time.Now(),
 		Type:        "Электроника",
-		ReceptionID: recId,
+		ReceptionID: uuid.New(),
 	}
 
 	tests := []struct {
 		name          string
-		setupMock     func(*mockdb.MockDBContract)
+		setupMock     func(db *mockdb.MockDBContract, nower *nower.MockNower)
 		expected      *entity.Product
 		expectedError error
 	}{
 		{
 			name: "successful GetLastProductByReceptionPVZ",
-			setupMock: func(mockDB *mockdb.MockDBContract) {
+			setupMock: func(mockDB *mockdb.MockDBContract, nower *nower.MockNower) {
 				rows := pgxmock.
 					NewRows([]string{
 						idColumnName,
@@ -106,31 +116,39 @@ func TestGetLastProductByReceptionPVZ(t *testing.T) {
 						receptionIdColumnName,
 					}).
 					AddRow(
-						retProduct.Uuid,
-						retProduct.DateTime,
-						retProduct.Type,
-						retProduct.ReceptionID,
+						prod.Uuid.String(),
+						prod.DateTime,
+						prod.Type,
+						prod.ReceptionID,
 					).
 					Kind()
 
 				mockDB.EXPECT().
-					Query(gomock.Any(), gomock.Any(), recId).
+					Query(
+						gomock.Any(),
+						gomock.Any(),
+						[]interface{}{prod.ReceptionID.String()},
+					).
 					Return(rows, nil)
 			},
-			expected: &retProduct,
+			expected: &prod,
 		},
 		{
 			name: "query db error",
-			setupMock: func(mockDB *mockdb.MockDBContract) {
+			setupMock: func(mockDB *mockdb.MockDBContract, nower *nower.MockNower) {
 				mockDB.EXPECT().
-					Query(gomock.Any(), gomock.Any(), recId).
+					Query(
+						gomock.Any(),
+						gomock.Any(),
+						[]interface{}{prod.ReceptionID.String()},
+					).
 					Return(nil, errors.New("query error"))
 			},
 			expectedError: repository2.ErrExecuteQuery,
 		},
 		{
 			name: "no product found",
-			setupMock: func(mockDB *mockdb.MockDBContract) {
+			setupMock: func(mockDB *mockdb.MockDBContract, nower *nower.MockNower) {
 				rows := pgxmock.
 					NewRows([]string{
 						idColumnName,
@@ -141,21 +159,29 @@ func TestGetLastProductByReceptionPVZ(t *testing.T) {
 					Kind()
 
 				mockDB.EXPECT().
-					Query(gomock.Any(), gomock.Any(), recId).
+					Query(
+						gomock.Any(),
+						gomock.Any(),
+						[]interface{}{prod.ReceptionID.String()},
+					).
 					Return(rows, nil)
 			},
 			expectedError: repository2.ErrProductNotFound,
 		},
 		{
 			name: "pgx.CollectOneRow - got some wrong columns data from db",
-			setupMock: func(mockDB *mockdb.MockDBContract) {
+			setupMock: func(mockDB *mockdb.MockDBContract, nower *nower.MockNower) {
 				rows := pgxmock.
 					NewRows([]string{"some_unexected", "some_unexected_2"}).
 					AddRow("unexp_data", "unexp_data_2").
 					Kind()
 
 				mockDB.EXPECT().
-					Query(gomock.Any(), gomock.Any(), recId).
+					Query(
+						gomock.Any(),
+						gomock.Any(),
+						[]interface{}{prod.ReceptionID.String()},
+					).
 					Return(rows, nil)
 			},
 			expectedError: repository2.ErrScanResult,
@@ -165,11 +191,17 @@ func TestGetLastProductByReceptionPVZ(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockDB := mockdb.NewMockDBContract(ctrl)
-			repo := &repository{db: mockDB}
+			mockNow := nower.NewMockNower(ctrl)
+			repo := &repository{
+				db:    mockDB,
+				nower: mockNow,
+			}
 
-			tt.setupMock(mockDB)
+			tt.setupMock(mockDB, mockNow)
 
-			result, err := repo.GetLastProductByReceptionPVZ(context.Background(), recId)
+			result, err := repo.GetLastProductByReceptionPVZ(context.Background(), entity.Product{
+				ReceptionID: prod.ReceptionID},
+			)
 
 			if !errors.Is(err, tt.expectedError) {
 				t.Errorf("expected error %v, got %v", tt.expectedError, err)
@@ -189,26 +221,26 @@ func TestAddProduct(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	receptionID := "1becb717-0ace-41e4-a711-37402f10cb51"
-	productType := "Электроника"
-	currTime := time.Now()
-
-	retProduct := entity.Product{
-		Uuid:        "671353c3-d091-4de8-83f9-983fb6e34ecf",
-		DateTime:    currTime,
-		Type:        productType,
-		ReceptionID: receptionID,
+	prod := entity.Product{
+		Uuid:        uuid.New(),
+		DateTime:    time.Now(),
+		Type:        "Электроника",
+		ReceptionID: uuid.New(),
 	}
 
 	tests := []struct {
 		name          string
-		setupMock     func(*mockdb.MockDBContract)
+		setupMock     func(db *mockdb.MockDBContract, nower *nower.MockNower)
 		expected      *entity.Product
 		expectedError error
 	}{
 		{
 			name: "successful AddProduct",
-			setupMock: func(mockDB *mockdb.MockDBContract) {
+			setupMock: func(mockDB *mockdb.MockDBContract, nower *nower.MockNower) {
+				nower.EXPECT().
+					Now().
+					Return(prod.DateTime)
+
 				rows := pgxmock.
 					NewRows([]string{
 						idColumnName,
@@ -217,31 +249,47 @@ func TestAddProduct(t *testing.T) {
 						receptionIdColumnName,
 					}).
 					AddRow(
-						retProduct.Uuid,
-						retProduct.DateTime,
-						retProduct.Type,
-						retProduct.ReceptionID,
+						prod.Uuid,
+						prod.DateTime,
+						prod.Type,
+						prod.ReceptionID,
 					).
 					Kind()
 
 				mockDB.EXPECT().
-					Query(gomock.Any(), gomock.Any(), productType, receptionID).
+					Query(
+						gomock.Any(),
+						gomock.Any(),
+						[]interface{}{prod.Uuid.String(), prod.DateTime, prod.Type, prod.ReceptionID.String()},
+					).
 					Return(rows, nil)
 			},
-			expected: &retProduct,
+			expected: &prod,
 		},
 		{
 			name: "query db error",
-			setupMock: func(mockDB *mockdb.MockDBContract) {
+			setupMock: func(mockDB *mockdb.MockDBContract, nower *nower.MockNower) {
+				nower.EXPECT().
+					Now().
+					Return(prod.DateTime)
+
 				mockDB.EXPECT().
-					Query(gomock.Any(), gomock.Any(), productType, receptionID).
+					Query(
+						gomock.Any(),
+						gomock.Any(),
+						[]interface{}{prod.Uuid.String(), prod.DateTime, prod.Type, prod.ReceptionID.String()},
+					).
 					Return(nil, errors.New("query error"))
 			},
 			expectedError: repository2.ErrExecuteQuery,
 		},
 		{
 			name: "no rows returned",
-			setupMock: func(mockDB *mockdb.MockDBContract) {
+			setupMock: func(mockDB *mockdb.MockDBContract, nower *nower.MockNower) {
+				nower.EXPECT().
+					Now().
+					Return(prod.DateTime)
+
 				rows := pgxmock.
 					NewRows([]string{
 						idColumnName,
@@ -252,21 +300,41 @@ func TestAddProduct(t *testing.T) {
 					Kind()
 
 				mockDB.EXPECT().
-					Query(gomock.Any(), gomock.Any(), productType, receptionID).
+					Query(
+						gomock.Any(),
+						gomock.Any(),
+						[]interface{}{prod.Uuid.String(), prod.DateTime, prod.Type, prod.ReceptionID.String()},
+					).
 					Return(rows, nil)
 			},
 			expectedError: repository2.ErrScanResult,
 		},
 		{
 			name: "pgx.CollectOneRow - got some wrong columns data from db",
-			setupMock: func(mockDB *mockdb.MockDBContract) {
+			setupMock: func(mockDB *mockdb.MockDBContract, nower *nower.MockNower) {
+				nower.EXPECT().
+					Now().
+					Return(prod.DateTime)
+
 				rows := pgxmock.
-					NewRows([]string{"some_unexpected", "some_unexpected_2"}).
-					AddRow("unexp_data", "unexp_data_2").
+					NewRows([]string{
+						"some_unexpected",
+						"some_unexpected_2",
+						"some_unexpected_3",
+						"some_unexpected_4"}).
+					AddRow(
+						"unexp_data",
+						"unexp_data_2",
+						"unexp_data_3",
+						"unexp_data_4").
 					Kind()
 
 				mockDB.EXPECT().
-					Query(gomock.Any(), gomock.Any(), productType, receptionID).
+					Query(
+						gomock.Any(),
+						gomock.Any(),
+						[]interface{}{prod.Uuid.String(), prod.DateTime, prod.Type, prod.ReceptionID.String()},
+					).
 					Return(rows, nil)
 			},
 			expectedError: repository2.ErrScanResult,
@@ -276,11 +344,19 @@ func TestAddProduct(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockDB := mockdb.NewMockDBContract(ctrl)
-			repo := &repository{db: mockDB}
+			mockNow := nower.NewMockNower(ctrl)
+			repo := &repository{
+				db:    mockDB,
+				nower: mockNow,
+			}
 
-			tt.setupMock(mockDB)
+			tt.setupMock(mockDB, mockNow)
 
-			result, err := repo.AddProduct(context.Background(), receptionID, productType)
+			result, err := repo.AddProduct(context.Background(), entity.Product{
+				Uuid:        prod.Uuid,
+				Type:        prod.Type,
+				ReceptionID: prod.ReceptionID,
+			})
 
 			if !errors.Is(err, tt.expectedError) {
 				t.Errorf("expected error %v, got %v", tt.expectedError, err)
@@ -304,28 +380,28 @@ func TestGetProductsByTimeRange(t *testing.T) {
 	endDate := time.Now()
 
 	product1 := entity.Product{
-		Uuid:        "prod-1",
+		Uuid:        uuid.New(),
 		DateTime:    startDate.Add(2 * time.Hour),
 		Type:        "Электроника",
-		ReceptionID: "rec-1",
+		ReceptionID: uuid.New(),
 	}
 
 	product2 := entity.Product{
-		Uuid:        "prod-2",
+		Uuid:        uuid.New(),
 		DateTime:    startDate.Add(3 * time.Hour),
 		Type:        "Одежда",
-		ReceptionID: "rec-2",
+		ReceptionID: uuid.New(),
 	}
 
 	tests := []struct {
 		name          string
-		setupMock     func(*mockdb.MockDBContract)
+		setupMock     func(db *mockdb.MockDBContract, nower *nower.MockNower)
 		expected      *[]entity.Product
 		expectedError error
 	}{
 		{
 			name: "successful GetProductsByTimeRange",
-			setupMock: func(mockDB *mockdb.MockDBContract) {
+			setupMock: func(mockDB *mockdb.MockDBContract, nower *nower.MockNower) {
 				rows := pgxmock.
 					NewRows([]string{
 						idColumnName,
@@ -345,7 +421,7 @@ func TestGetProductsByTimeRange(t *testing.T) {
 		},
 		{
 			name: "query db error",
-			setupMock: func(mockDB *mockdb.MockDBContract) {
+			setupMock: func(mockDB *mockdb.MockDBContract, nower *nower.MockNower) {
 				mockDB.EXPECT().
 					Query(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
 					Return(nil, errors.New("query error"))
@@ -354,7 +430,7 @@ func TestGetProductsByTimeRange(t *testing.T) {
 		},
 		{
 			name: "pgx.CollectRows returns unexpected scan error",
-			setupMock: func(mockDB *mockdb.MockDBContract) {
+			setupMock: func(mockDB *mockdb.MockDBContract, nower *nower.MockNower) {
 				rows := pgxmock.
 					NewRows([]string{"some", "wrong"}).
 					AddRow("unexpected", "columns").
@@ -371,9 +447,13 @@ func TestGetProductsByTimeRange(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockDB := mockdb.NewMockDBContract(ctrl)
-			repo := &repository{db: mockDB}
+			mockNow := nower.NewMockNower(ctrl)
+			repo := &repository{
+				db:    mockDB,
+				nower: mockNow,
+			}
 
-			tt.setupMock(mockDB)
+			tt.setupMock(mockDB, mockNow)
 
 			result, err := repo.GetProductsByTimeRange(context.Background(), startDate, endDate)
 

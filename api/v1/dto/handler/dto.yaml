@@ -1,0 +1,369 @@
+openapi: 3.0.0
+info:
+  title: PVZ DTOs
+  version: 1.0.0
+  description: PVZ DTOs
+paths: { }
+
+components:
+  schemas:
+    AddProductIn:
+      type: object
+      required: [ type, pvzId ]
+      properties:
+        type:
+          type: string
+          x-oapi-codegen-extra-tags:
+            validate: "required,oneof_category"
+        pvzId:
+          type: string
+          format: uuid
+          x-go-type: uuid.UUID
+          x-go-name: "PVZID"
+          x-oapi-codegen-extra-tags:
+            validate: "required,uuid"
+
+    AddProductOut:
+      type: object
+      required: [ id, dateTime, type, receptionId ]
+      properties:
+        id:
+          type: string
+          format: uuid
+          x-go-type: uuid.UUID
+          x-go-name: "Uuid"
+        dateTime:
+          type: string
+          format: date-time
+          x-go-name: "DateTime"
+        type:
+          type: string
+          x-go-name: "Type"
+        receptionId:
+          type: string
+          format: uuid
+          x-go-type: uuid.UUID
+          x-go-name: "ReceptionID"
+
+    CloseReceptionIn:
+      type: object
+      required: [ pvzId ]
+      properties:
+        pvzId:
+          type: string
+          format: uuid
+          x-go-type: uuid.UUID
+          x-go-name: "PVZID"
+          x-oapi-codegen-extra-tags:
+            validate: "required,uuid"
+
+    CloseReceptionOut:
+      type: object
+      required: [ id, datetime, pvzId, status ]
+      properties:
+        id:
+          type: string
+          format: uuid
+          x-go-type: uuid.UUID
+          x-go-name: "Uuid"
+        datetime:
+          type: string
+          format: date-time
+          x-go-name: "DateTime"
+          x-json-name: "dateTime"
+        pvzId:
+          type: string
+          format: uuid
+          x-go-type: uuid.UUID
+          x-go-name: "PVZID"
+          x-json-name: "pvzId"
+        status:
+          type: string
+          x-go-type: string
+          x-go-name: "Status"
+          x-json-name: "status"
+
+    CreatePVZIn:
+      type: object
+      required: [ city ]
+      properties:
+        city:
+          type: string
+          x-go-type: string
+          x-go-name: "City"
+          x-oapi-codegen-extra-tags:
+            validate: "required,oneof_city"
+
+    CreatePVZOut:
+      type: object
+      required: [ id, registrationDate, city ]
+      properties:
+        id:
+          type: string
+          format: uuid
+          x-go-type: uuid.UUID
+          x-go-name: "Uuid"
+        registrationDate:
+          type: string
+          format: date-time
+          x-go-name: "RegistrationDate"
+          x-json-name: "registrationDate"
+        city:
+          type: string
+          x-go-type: string
+          x-go-name: "City"
+          x-json-name: "city"
+
+    DeleteProductIn:
+      type: object
+      required: [ pvzId ]
+      properties:
+        pvzId:
+          type: string
+          format: uuid
+          x-go-type: uuid.UUID
+          x-go-name: "PVZID"
+          x-json-name: "pvzId"
+          x-oapi-codegen-extra-tags:
+            validate: "required,uuid"
+
+    DummyLoginIn:
+      type: object
+      required: [ role ]
+      properties:
+        role:
+          type: string
+          x-go-type: string
+          x-go-name: "Role"
+          x-json-name: "role"
+          x-oapi-codegen-extra-tags:
+            validate: "required,oneof_user"
+
+    DummyLoginOut:
+      type: object
+      required: [ token ]
+      properties:
+        token:
+          type: string
+          x-go-type: string
+          x-go-name: "Token"
+          x-json-name: "token"
+
+    LoginUserIn:
+      type: object
+      required: [ email, password ]
+      properties:
+        email:
+          type: string
+          format: email
+          x-go-type: string
+          x-go-name: "Email"
+          x-json-name: "email"
+          x-oapi-codegen-extra-tags:
+            validate: "required,email"
+        password:
+          type: string
+          x-go-type: string
+          x-go-name: "Password"
+          x-json-name: "password"
+          x-oapi-codegen-extra-tags:
+            validate: "required"
+
+    LoginUserOut:
+      type: object
+      required: [ token ]
+      properties:
+        token:
+          type: string
+          x-go-type: string
+          x-go-name: "Token"
+          x-json-name: "token"
+
+    PvzInfoIn:
+      type: object
+      required: [ startDate, endDate, page, limit ]
+      properties:
+        startDate:
+          type: string
+          format: date-time
+          x-oapi-codegen-extra-tags:
+            validate: "required"
+        endDate:
+          type: string
+          format: date-time
+          x-oapi-codegen-extra-tags:
+            validate: "required"
+        page:
+          type: integer
+          x-oapi-codegen-extra-tags:
+            validate: "required"
+        limit:
+          type: integer
+          x-oapi-codegen-extra-tags:
+            validate: "required"
+
+    PvzInfoOut:
+      type: object
+      required: [ pvz, receptions ]
+      properties:
+        pvz:
+          $ref: '#/components/schemas/PvzInfoPvzOut'
+        receptions:
+          type: array
+          items:
+            $ref: '#/components/schemas/PvzInfoReceptionWithProductsOut'
+
+    PvzInfoReceptionWithProductsOut:
+      type: object
+      required: [ reception, products ]
+      properties:
+        reception:
+          $ref: '#/components/schemas/PvzInfoReceptionOut'
+        products:
+          type: array
+          items:
+            $ref: '#/components/schemas/PvzInfoProductOut'
+
+    PvzInfoProductOut:
+      type: object
+      required: [ id, dateTime, type, receptionId ]
+      properties:
+        id:
+          type: string
+          format: uuid
+          x-go-type: uuid.UUID
+          x-go-name: "Uuid"
+        dateTime:
+          type: string
+          format: date-time
+          x-go-name: "DateTime"
+          x-json-name: "dateTime"
+        type:
+          type: string
+        receptionId:
+          type: string
+          x-go-type: uuid.UUID
+          x-go-name: "ReceptionID"
+
+    PvzInfoReceptionOut:
+      type: object
+      required: [ id, dateTime, pvzId, status ]
+      properties:
+        id:
+          type: string
+          format: uuid
+          x-go-type: uuid.UUID
+          x-go-name: "id"
+        dateTime:
+          type: string
+          format: date-time
+          x-go-name: "DateTime"
+          x-json-name: "dateTime"
+        pvzId:
+          type: string
+          format: uuid
+          x-go-type: uuid.UUID
+          x-go-name: "pvzId"
+        status:
+          type: string
+
+    PvzInfoPvzOut:
+      type: object
+      required: [ id, registrationDate, city ]
+      properties:
+        id:
+          type: string
+          format: uuid
+          x-go-type: uuid.UUID
+          x-go-name: "Uuid"
+        registrationDate:
+          type: string
+          format: date-time
+          x-go-name: "RegistrationDate"
+          x-json-name: "registrationDate"
+        city:
+          type: string
+
+    RegisterUserIn:
+      type: object
+      required: [ email, password, role ]
+      properties:
+        email:
+          type: string
+          format: email
+          x-go-type: string
+          x-go-name: "Email"
+          x-json-name: "email"
+          x-oapi-codegen-extra-tags:
+            validate: "required,email"
+        password:
+          type: string
+          x-go-type: string
+          x-go-name: "Password"
+          x-json-name: "password"
+          x-oapi-codegen-extra-tags:
+            validate: "required"
+        role:
+          type: string
+          x-go-type: string
+          x-go-name: "Role"
+          x-json-name: "role"
+          x-oapi-codegen-extra-tags:
+            validate: "required,oneof_user"
+
+    RegisterUserOut:
+      type: object
+      required: [ id, email, role ]
+      properties:
+        id:
+          type: string
+          format: uuid
+          x-go-type: uuid.UUID
+          x-go-name: "Uuid"
+        email:
+          type: string
+          format: email
+          x-go-type: string
+          x-go-name: "Email"
+          x-json-name: "email"
+        role:
+          type: string
+          x-go-type: string
+          x-go-name: "Role"
+          x-json-name: "role"
+
+    StartReceptionIn:
+      type: object
+      required: [ pvzId ]
+      properties:
+        pvzId:
+          type: string
+          format: uuid
+          x-go-type: uuid.UUID
+          x-go-name: "PVZID"
+          x-oapi-codegen-extra-tags:
+            validate: "required,uuid"
+
+    StartReceptionOut:
+      type: object
+      required: [ id, datetime, pvzId, status ]
+      properties:
+        id:
+          type: string
+          format: uuid
+          x-go-type: uuid.UUID
+          x-go-name: "id"
+        datetime:
+          type: string
+          format: date-time
+          x-go-name: "DateTime"
+        pvzId:
+          type: string
+          format: uuid
+          x-go-type: uuid.UUID
+          x-go-name: "pvzId"
+        status:
+          type: string
+          x-go-type: string
+          x-go-name: "Status"
+          x-json-name: "status"

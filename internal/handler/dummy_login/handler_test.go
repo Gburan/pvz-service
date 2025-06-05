@@ -3,18 +3,20 @@ package dummy_login
 import (
 	"encoding/json"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 
+	dto "pvz-service/internal/generated/api/v1/dto/handler"
 	jwt2 "pvz-service/internal/jwt"
 
 	"github.com/go-playground/validator/v10"
-	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/mock/gomock"
 )
 
 func TestDummyLogin(t *testing.T) {
@@ -32,11 +34,12 @@ func TestDummyLogin(t *testing.T) {
 		return false
 	})
 	if err != nil {
-		log.Fatal(err)
+		slog.Error(err.Error())
+		os.Exit(1)
 	}
 
 	secret := "test-secret"
-	reqDTO := dummyLoginIn{
+	reqDTO := dto.DummyLoginIn{
 		Role: "moderator",
 	}
 
@@ -44,14 +47,14 @@ func TestDummyLogin(t *testing.T) {
 		name          string
 		reqBody       string
 		expectedCode  int
-		expected      *dummyLoginOut
+		expected      *dto.DummyLoginOut
 		expectedError map[string]string
 	}{
 		{
 			name:         "successful login",
 			reqBody:      fmt.Sprintf(`{"role":"%s"}`, reqDTO.Role),
 			expectedCode: http.StatusOK,
-			expected: &dummyLoginOut{
+			expected: &dto.DummyLoginOut{
 				Token: "",
 			},
 		},
@@ -98,7 +101,7 @@ func TestDummyLogin(t *testing.T) {
 			assert.Equal(t, tt.expectedCode, w.Code)
 
 			if tt.expected != nil {
-				var response dummyLoginOut
+				var response dto.DummyLoginOut
 				err := json.NewDecoder(w.Body).Decode(&response)
 				require.NoError(t, err)
 

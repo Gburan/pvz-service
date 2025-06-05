@@ -6,8 +6,8 @@ import (
 	"pvz-service/internal/model/entity"
 )
 
-//go:generate mockgen -source=contract.go -destination=mocks/contract_mock.go -package=user RepositoryReception
+//go:generate go run go.uber.org/mock/mockgen -source=contract.go -destination=mocks/contract_mock.go -package=user RepositoryReception
 type RepositoryUser interface {
-	AddUser(ctx context.Context, email string, passwordHash string, role string) (*entity.User, error)
-	GetUserByEmail(ctx context.Context, email string) (*entity.User, error)
+	AddUser(ctx context.Context, user entity.User) (*entity.User, error)
+	GetUserByEmail(ctx context.Context, user entity.User) (*entity.User, error)
 }

@@ -1,7 +1,23 @@
 server:
-  address: :8080
+  rest:
+    address: :8080
+    conn_settings:
+      read_timeout: 5s
+      write_timeout: 5s
+      idle_timeout: 5m
+  grpc:
+    address: :3000
+    conn_settings:
+      max_conn_idle: 5m
+      max_conn_age: 10m
 postgres:
   conn: postgres://postgres:postgres@localhost:5432/pvz-service
+  pool_settings:
+    max_conns: 15
+    min_idle_conns: 5
+    max_conn_idle_time: 5m
+    max_conn_lifetime: 10m
+  migrations_dir: ./migrations
 app:
   allowed_categories:
     - электроника
@@ -15,3 +31,6 @@ app:
     - moderator
     - employee
   jwt_token: 6a627a7fb025e2c5bed303316a3a1c801c1178bed303316a627a7fb67523a1c8
+  logging:
+    output: "stdout" # "stdout", "stderr", "/var/log/myapp/<file.log>"
+    level: "debug"   # "debug", "info", "warn", "error"

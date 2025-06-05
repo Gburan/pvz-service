@@ -1,10 +1,14 @@
 package product
 
-import "time"
+import (
+	"time"
+
+	"github.com/google/uuid"
+)
 
 type productDB struct {
-	Uuid        string    `db:"id"`
+	Uuid        uuid.UUID `db:"id"`
 	DateTime    time.Time `db:"date_time"`
 	Type        string    `db:"type"`
-	ReceptionID string    `db:"reception_id"`
+	ReceptionID uuid.UUID `db:"reception_id"`
 }

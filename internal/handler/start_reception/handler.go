@@ -5,9 +5,10 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
-	"time"
 
+	dto "pvz-service/internal/generated/api/v1/dto/handler"
 	"pvz-service/internal/handler"
+	"pvz-service/internal/logging"
 	usecase2 "pvz-service/internal/usecase"
 	"pvz-service/internal/usecase/start_reception"
 
@@ -26,41 +27,56 @@ func New(usecase usecase, validator *validator.Validate) *createHandler {
 	}
 }
 
+// @Summary Start new reception
+// @Description Create new opened reception at PVZ
+// @ID StartReception
+// @Tags PVZ
+// @Security ApiKeyAuth
+// @Accept json
+// @Produce json
+// @Param input body dto.StartReceptionIn true "PVZ ID"
+// @Success 	200 {object} dto.StartReceptionOut "Reception successfully started"
+// @Failure 	400 {object} handler.errorResponse "PVZ not found or opened reception exists"
+// @Failure 	500 {object} handler.errorResponse "Internal server error"
+// @Router 		/receptions [post]
 func (h *createHandler) StartReception(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
-	var request startReceptionIn
+	ctx := r.Context()
+
+	var request dto.StartReceptionIn
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-		handler.RespondWithError(w, http.StatusBadRequest, "failed to decode request", err)
+		handler.RespondWithError(w, ctx, http.StatusBadRequest, "failed to decode request", err)
 		return
 	}
 	if err := h.validator.Struct(request); err != nil {
-		handler.RespondWithError(w, http.StatusBadRequest, "validation failed", err)
+		handler.RespondWithError(w, ctx, http.StatusBadRequest, "validation failed", err)
 		return
 	}
 
-	ctx := context.TODO()
+	ctx = logging.WithLogPVZID(ctx, request.PVZID)
+
 	result, err := h.usecase.Run(ctx, start_reception.In{
 		PVZID: request.PVZID,
 	})
 	if err != nil {
-		handleUseCaseError(w, err)
+		handleUseCaseError(w, ctx, err)
 		return
 	}
 
-	out := startReceptionOut{
+	out := dto.StartReceptionOut{
 		Id:       result.Reception.Uuid,
-		DateTime: result.Reception.DateTime.UTC().Format(time.RFC3339Nano),
+		DateTime: result.Reception.DateTime.UTC(),
 		PvzId:    result.Reception.PVZID,
 		Status:   result.Reception.Status,
 	}
 	if err = json.NewEncoder(w).Encode(out); err != nil {
-		handler.RespondWithError(w, http.StatusInternalServerError, "failed to encode response", err)
+		handler.RespondWithError(w, ctx, http.StatusInternalServerError, "failed to encode response", err)
 		return
 	}
 }
 
-func handleUseCaseError(w http.ResponseWriter, err error) {
+func handleUseCaseError(w http.ResponseWriter, ctx context.Context, err error) {
 	var statusCode int
 	errorMsg := "internal server error"
 
@@ -82,5 +98,5 @@ func handleUseCaseError(w http.ResponseWriter, err error) {
 		statusCode = http.StatusInternalServerError
 	}
 
-	handler.RespondWithError(w, statusCode, errorMsg, err)
+	handler.RespondWithError(w, ctx, statusCode, errorMsg, err)
 }

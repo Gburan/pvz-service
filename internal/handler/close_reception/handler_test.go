@@ -1,23 +1,24 @@
 package close_reception
 
 import (
-	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
 
+	dto "pvz-service/internal/generated/api/v1/dto/handler"
 	close_reception2 "pvz-service/internal/handler/close_reception/mocks"
 	"pvz-service/internal/model/entity"
 	usecase2 "pvz-service/internal/usecase"
 	"pvz-service/internal/usecase/close_reception"
 
 	"github.com/go-playground/validator/v10"
-	"github.com/golang/mock/gomock"
+	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/mock/gomock"
 )
 
 func TestCloseReception(t *testing.T) {
@@ -28,22 +29,22 @@ func TestCloseReception(t *testing.T) {
 
 	valid := validator.New(validator.WithRequiredStructEnabled())
 
-	pvzID := "6d132f66-dcfe-493e-965d-95c99e5f325d"
+	pvzID := uuid.New()
 
 	usecaseIn := close_reception.In{
 		PVZID: pvzID,
 	}
 	usecaseOut := close_reception.Out{
 		Reception: entity.Reception{
-			Uuid:     "671353c3-d091-4de8-83f9-983fb6e34ecf",
+			Uuid:     uuid.New(),
 			DateTime: currTime,
 			PVZID:    pvzID,
 			Status:   "closed",
 		},
 	}
-	handlerOut := closeReceptionOut{
+	handlerOut := dto.CloseReceptionOut{
 		Uuid:     usecaseOut.Reception.Uuid,
-		DateTime: usecaseOut.Reception.DateTime.UTC().Format(time.RFC3339Nano),
+		DateTime: usecaseOut.Reception.DateTime.UTC(),
 		PVZID:    usecaseOut.Reception.PVZID,
 		Status:   usecaseOut.Reception.Status,
 	}
@@ -51,16 +52,16 @@ func TestCloseReception(t *testing.T) {
 	tests := []struct {
 		name          string
 		setupMock     func(*close_reception2.Mockusecase)
-		pvzId         string
+		pvzId         uuid.UUID
 		expectedCode  int
-		expected      *closeReceptionOut
+		expected      *dto.CloseReceptionOut
 		expectedError map[string]string
 	}{
 		{
 			name: "successful close reception",
 			setupMock: func(mockUsecase *close_reception2.Mockusecase) {
 				mockUsecase.EXPECT().
-					Run(context.TODO(), usecaseIn).
+					Run(gomock.Any(), usecaseIn).
 					Return(&usecaseOut, nil)
 			},
 			pvzId:        pvzID,
@@ -70,16 +71,6 @@ func TestCloseReception(t *testing.T) {
 		{
 			name:         "validation failed - empty pvzId",
 			setupMock:    func(mockUsecase *close_reception2.Mockusecase) {},
-			pvzId:        "",
-			expectedCode: http.StatusBadRequest,
-			expectedError: map[string]string{
-				"message": "validation failed",
-			},
-		},
-		{
-			name:         "validation failed - invalid uuid",
-			setupMock:    func(mockUsecase *close_reception2.Mockusecase) {},
-			pvzId:        "invalid_uuid",
 			expectedCode: http.StatusBadRequest,
 			expectedError: map[string]string{
 				"message": "validation failed",
@@ -89,7 +80,7 @@ func TestCloseReception(t *testing.T) {
 			name: "usecase error - PVZ not found",
 			setupMock: func(mockUsecase *close_reception2.Mockusecase) {
 				mockUsecase.EXPECT().
-					Run(context.TODO(), usecaseIn).
+					Run(gomock.Any(), usecaseIn).
 					Return(nil, usecase2.ErrNotFoundPVZ)
 			},
 			pvzId:        pvzID,
@@ -102,7 +93,7 @@ func TestCloseReception(t *testing.T) {
 			name: "usecase error - failed to look up for PVZ",
 			setupMock: func(mockUsecase *close_reception2.Mockusecase) {
 				mockUsecase.EXPECT().
-					Run(context.TODO(), usecaseIn).
+					Run(gomock.Any(), usecaseIn).
 					Return(nil, usecase2.ErrGetPVZByID)
 			},
 			pvzId:        pvzID,
@@ -115,7 +106,7 @@ func TestCloseReception(t *testing.T) {
 			name: "usecase error - no receptions at all",
 			setupMock: func(mockUsecase *close_reception2.Mockusecase) {
 				mockUsecase.EXPECT().
-					Run(context.TODO(), usecaseIn).
+					Run(gomock.Any(), usecaseIn).
 					Return(nil, usecase2.ErrNotFoundReception)
 			},
 			pvzId:        pvzID,
@@ -128,7 +119,7 @@ func TestCloseReception(t *testing.T) {
 			name: "usecase error - failed to get reception",
 			setupMock: func(mockUsecase *close_reception2.Mockusecase) {
 				mockUsecase.EXPECT().
-					Run(context.TODO(), usecaseIn).
+					Run(gomock.Any(), usecaseIn).
 					Return(nil, usecase2.ErrGetReception)
 			},
 			pvzId:        pvzID,
@@ -141,7 +132,7 @@ func TestCloseReception(t *testing.T) {
 			name: "usecase error - no opened reception",
 			setupMock: func(mockUsecase *close_reception2.Mockusecase) {
 				mockUsecase.EXPECT().
-					Run(context.TODO(), usecaseIn).
+					Run(gomock.Any(), usecaseIn).
 					Return(nil, usecase2.ErrNotFoundOpenedReception)
 			},
 			pvzId:        pvzID,
@@ -154,7 +145,7 @@ func TestCloseReception(t *testing.T) {
 			name: "usecase error - failed to close reception",
 			setupMock: func(mockUsecase *close_reception2.Mockusecase) {
 				mockUsecase.EXPECT().
-					Run(context.TODO(), usecaseIn).
+					Run(gomock.Any(), usecaseIn).
 					Return(nil, usecase2.ErrCloseReception)
 			},
 			pvzId:        pvzID,
@@ -175,17 +166,17 @@ func TestCloseReception(t *testing.T) {
 			w := httptest.NewRecorder()
 			req := httptest.NewRequest(
 				"POST",
-				"/pvz/"+tt.pvzId+"/close_last_reception",
+				"/pvz/"+tt.pvzId.String()+"/close_last_reception",
 				nil,
 			)
-			req = mux.SetURLVars(req, map[string]string{"pvzId": tt.pvzId})
+			req = mux.SetURLVars(req, map[string]string{"pvzId": tt.pvzId.String()})
 
 			handler.CloseReception(w, req)
 
 			assert.Equal(t, tt.expectedCode, w.Code)
 
 			if tt.expected != nil {
-				var response closeReceptionOut
+				var response dto.CloseReceptionOut
 				err := json.NewDecoder(w.Body).Decode(&response)
 				require.NoError(t, err)
 

@@ -1,5 +1,7 @@
 package delete_product
 
+import "github.com/google/uuid"
+
 type In struct {
-	PVZID string
+	PVZID uuid.UUID
 }

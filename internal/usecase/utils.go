@@ -27,4 +27,5 @@ var (
 	ErrDeleteProduct           = errors.New("failed to delete product")
 	ErrNotFoundProduct         = errors.New("no product for pvz")
 	ErrStartReception          = errors.New("failed to start reception")
+	ErrListPVZs                = errors.New("failed to list pvzs")
 )

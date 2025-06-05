@@ -1,7 +1,6 @@
 package delete_product
 
 import (
-	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -12,10 +11,11 @@ import (
 	"pvz-service/internal/usecase/delete_product"
 
 	"github.com/go-playground/validator/v10"
-	"github.com/golang/mock/gomock"
+	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/mock/gomock"
 )
 
 func TestDeleteProduct(t *testing.T) {
@@ -24,7 +24,7 @@ func TestDeleteProduct(t *testing.T) {
 
 	valid := validator.New(validator.WithRequiredStructEnabled())
 
-	pvzID := "6d132f66-dcfe-493e-965d-95c99e5f325d"
+	pvzID := uuid.New()
 	usecaseIn := delete_product.In{
 		PVZID: pvzID,
 	}
@@ -36,7 +36,7 @@ func TestDeleteProduct(t *testing.T) {
 	tests := []struct {
 		name          string
 		setupMock     func(*delete_product2.Mockusecase)
-		pvzId         string
+		pvzId         uuid.UUID
 		expectedCode  int
 		expected      map[string]string
 		expectedError map[string]string
@@ -45,7 +45,7 @@ func TestDeleteProduct(t *testing.T) {
 			name: "successful delete product",
 			setupMock: func(mockUsecase *delete_product2.Mockusecase) {
 				mockUsecase.EXPECT().
-					Run(context.TODO(), usecaseIn).
+					Run(gomock.Any(), usecaseIn).
 					Return(nil)
 			},
 			pvzId:        pvzID,
@@ -55,16 +55,6 @@ func TestDeleteProduct(t *testing.T) {
 		{
 			name:         "validation failed - empty pvzId",
 			setupMock:    func(mockUsecase *delete_product2.Mockusecase) {},
-			pvzId:        "",
-			expectedCode: http.StatusBadRequest,
-			expectedError: map[string]string{
-				"message": "validation failed",
-			},
-		},
-		{
-			name:         "validation failed - invalid uuid",
-			setupMock:    func(mockUsecase *delete_product2.Mockusecase) {},
-			pvzId:        "invalid_uuid",
 			expectedCode: http.StatusBadRequest,
 			expectedError: map[string]string{
 				"message": "validation failed",
@@ -74,7 +64,7 @@ func TestDeleteProduct(t *testing.T) {
 			name: "usecase error - PVZ not found",
 			setupMock: func(mockUsecase *delete_product2.Mockusecase) {
 				mockUsecase.EXPECT().
-					Run(context.TODO(), usecaseIn).
+					Run(gomock.Any(), usecaseIn).
 					Return(usecase2.ErrNotFoundPVZ)
 			},
 			pvzId:        pvzID,
@@ -87,7 +77,7 @@ func TestDeleteProduct(t *testing.T) {
 			name: "usecase error - failed to look up for PVZ",
 			setupMock: func(mockUsecase *delete_product2.Mockusecase) {
 				mockUsecase.EXPECT().
-					Run(context.TODO(), usecaseIn).
+					Run(gomock.Any(), usecaseIn).
 					Return(usecase2.ErrGetPVZByID)
 			},
 			pvzId:        pvzID,
@@ -100,7 +90,7 @@ func TestDeleteProduct(t *testing.T) {
 			name: "usecase error - no receptions at all",
 			setupMock: func(mockUsecase *delete_product2.Mockusecase) {
 				mockUsecase.EXPECT().
-					Run(context.TODO(), usecaseIn).
+					Run(gomock.Any(), usecaseIn).
 					Return(usecase2.ErrNotFoundReception)
 			},
 			pvzId:        pvzID,
@@ -113,7 +103,7 @@ func TestDeleteProduct(t *testing.T) {
 			name: "usecase error - failed to get reception",
 			setupMock: func(mockUsecase *delete_product2.Mockusecase) {
 				mockUsecase.EXPECT().
-					Run(context.TODO(), usecaseIn).
+					Run(gomock.Any(), usecaseIn).
 					Return(usecase2.ErrGetReception)
 			},
 			pvzId:        pvzID,
@@ -126,7 +116,7 @@ func TestDeleteProduct(t *testing.T) {
 			name: "usecase error - no opened reception",
 			setupMock: func(mockUsecase *delete_product2.Mockusecase) {
 				mockUsecase.EXPECT().
-					Run(context.TODO(), usecaseIn).
+					Run(gomock.Any(), usecaseIn).
 					Return(usecase2.ErrNotFoundOpenedReception)
 			},
 			pvzId:        pvzID,
@@ -139,7 +129,7 @@ func TestDeleteProduct(t *testing.T) {
 			name: "usecase error - no product to delete",
 			setupMock: func(mockUsecase *delete_product2.Mockusecase) {
 				mockUsecase.EXPECT().
-					Run(context.TODO(), usecaseIn).
+					Run(gomock.Any(), usecaseIn).
 					Return(usecase2.ErrNotFoundProduct)
 			},
 			pvzId:        pvzID,
@@ -152,7 +142,7 @@ func TestDeleteProduct(t *testing.T) {
 			name: "usecase error - failed to find product",
 			setupMock: func(mockUsecase *delete_product2.Mockusecase) {
 				mockUsecase.EXPECT().
-					Run(context.TODO(), usecaseIn).
+					Run(gomock.Any(), usecaseIn).
 					Return(usecase2.ErrGetProduct)
 			},
 			pvzId:        pvzID,
@@ -165,7 +155,7 @@ func TestDeleteProduct(t *testing.T) {
 			name: "usecase error - failed to delete product",
 			setupMock: func(mockUsecase *delete_product2.Mockusecase) {
 				mockUsecase.EXPECT().
-					Run(context.TODO(), usecaseIn).
+					Run(gomock.Any(), usecaseIn).
 					Return(usecase2.ErrDeleteProduct)
 			},
 			pvzId:        pvzID,
@@ -186,10 +176,10 @@ func TestDeleteProduct(t *testing.T) {
 			w := httptest.NewRecorder()
 			req := httptest.NewRequest(
 				"POST",
-				"/pvz/"+tt.pvzId+"/delete_last_product",
+				"/pvz/"+tt.pvzId.String()+"/delete_last_product",
 				nil,
 			)
-			req = mux.SetURLVars(req, map[string]string{"pvzId": tt.pvzId})
+			req = mux.SetURLVars(req, map[string]string{"pvzId": tt.pvzId.String()})
 
 			handler.DeleteProduct(w, req)
 

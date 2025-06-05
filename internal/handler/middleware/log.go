@@ -1,44 +1,61 @@
 package middleware
 
 import (
-	"bytes"
-	"io"
-	"log"
+	"fmt"
+	"log/slog"
 	"net/http"
 	"time"
+
+	"pvz-service/internal/logging"
+	"pvz-service/internal/metrics"
+
+	"github.com/google/uuid"
+	"github.com/gorilla/mux"
 )
 
 func LoggerMiddleware(next http.Handler) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		start := time.Now()
+		ctx := r.Context()
 
-		log.Printf("Started %s %s at %s", r.Method, r.URL.Path, start.String())
-
-		if r.Body != nil {
-			bodyBytes, _ := io.ReadAll(r.Body)
-			log.Printf("Request Body: %s", string(bodyBytes))
-
-			r.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
+		var pathTemplate string
+		if route := mux.CurrentRoute(r); route != nil {
+			var err error
+			pathTemplate, err = route.GetPathTemplate()
+			if err != nil {
+				slog.WarnContext(ctx, err.Error())
+			}
 		}
 
-		rw := &responseWriter{w, http.StatusOK, &bytes.Buffer{}}
+		metrics.IncRestRequestsTotal(pathTemplate)
+
+		requestId := uuid.New()
+		slog.InfoContext(ctx, fmt.Sprintf("Start [%s] request processing", requestId.String()))
+		start := time.Now()
+
+		ctx = logging.WithLogRequestID(ctx, requestId)
+		ctx = logging.WithLogRequestPath(ctx, r.URL.Path)
+		ctx = logging.WithLogRequestMethod(ctx, r.Method)
+
+		rw := &responseWriter{w, http.StatusOK}
+		r = r.WithContext(ctx)
 
 		next.ServeHTTP(rw, r)
 
-		log.Printf("Response Body: %s", rw.body.String())
-		log.Printf("Completed %s %s with %d in %v", r.Method, r.URL.Path, rw.statusCode, time.Since(start))
+		timeServe := time.Since(start)
+		ctx = r.Context()
+		ctx = logging.WithLogRequestStatus(ctx, rw.statusCode)
+		ctx = logging.WithLogRequestDuration(ctx, timeServe.String())
+
+		slog.InfoContext(ctx, fmt.Sprintf("Ended [%s] request processing", requestId.String()))
+
+		metrics.IncRestResponsesDuration(pathTemplate, r.Method, timeServe)
+		metrics.IncRestResponsesStatusesTotal(pathTemplate, rw.statusCode)
 	})
 }
 
 type responseWriter struct {
 	http.ResponseWriter
 	statusCode int
-	body       *bytes.Buffer
-}
-
-func (rw *responseWriter) Write(b []byte) (int, error) {
-	rw.body.Write(b)
-	return rw.ResponseWriter.Write(b)
 }
 
 func (rw *responseWriter) WriteHeader(code int) {

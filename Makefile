@@ -11,20 +11,27 @@ lint:
 lint-fix:
 	$(LINTER) $(LINTER_FLAGS) --fix
 
-.PHONY: install-linter-mockgen
+.PHONY: install
 install-linter:
 	go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+	go install github.com/swaggo/swag/cmd/swag@latest
 	go install golang.org/x/tools/cmd/goimports@latest
 	go install go.uber.org/mock/mockgen@latest
 
 .PHONY: run-test-clean
-run-it:
+run-test-clean:
 	go clean -testcache
 	go test ./...
 
-.PHONY: gen-mocks
-run-it:
+.PHONY: gen
+gen:
 	go generate ./...
+
+.PHONY: run-compose-f
+run-compose-f:
+	go mod tidy
+	go generate ./...
+	docker-compose up -d
 
 .PHONY: run-compose
 run-compose:

@@ -13,9 +13,10 @@ import (
 	pvz "pvz-service/internal/usecase/contract/repository/pvz/mocks"
 	reception "pvz-service/internal/usecase/contract/repository/reception/mocks"
 
-	"github.com/golang/mock/gomock"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/mock/gomock"
 )
 
 func TestDeleteProduct(t *testing.T) {
@@ -25,17 +26,17 @@ func TestDeleteProduct(t *testing.T) {
 	currTime := time.Now()
 
 	reqData := In{
-		PVZID: "6d132f66-dcfe-493e-965d-95c99e5f325d",
+		PVZID: uuid.New(),
 	}
 
 	retReception := entity.Reception{
-		Uuid:     "1becb717-0ace-41e4-a711-37402f10cb51",
+		Uuid:     uuid.New(),
 		DateTime: currTime,
 		PVZID:    reqData.PVZID,
 		Status:   "in_progress",
 	}
 	retProduct := entity.Product{
-		Uuid:        "671353c3-d091-4de8-83f9-983fb6e34ecf",
+		Uuid:        uuid.New(),
 		DateTime:    currTime,
 		Type:        "Электроника",
 		ReceptionID: retReception.Uuid,
@@ -65,26 +66,26 @@ func TestDeleteProduct(t *testing.T) {
 				mockPVZ *pvz.MockRepositoryPVZ,
 			) {
 				mockPVZ.EXPECT().
-					GetPVZByID(gomock.Any(), gomock.AssignableToTypeOf(In{}.PVZID)).
-					DoAndReturn(func(_ context.Context, pvzId string) (*entity.PVZ, error) {
+					GetPVZByID(gomock.Any(), gomock.Any()).
+					DoAndReturn(func(_ context.Context, pvz entity.PVZ) (*entity.PVZ, error) {
 						return &retPVZ, nil
 					})
 
 				mockReception.EXPECT().
-					GetLastReceptionPVZ(gomock.Any(), gomock.AssignableToTypeOf(In{}.PVZID)).
-					DoAndReturn(func(_ context.Context, pvzId string) (*entity.Reception, error) {
+					GetLastReceptionPVZ(gomock.Any(), gomock.Any()).
+					DoAndReturn(func(_ context.Context, rec entity.Reception) (*entity.Reception, error) {
 						return &retReception, nil
 					})
 
 				mockProduct.EXPECT().
-					GetLastProductByReceptionPVZ(gomock.Any(), gomock.AssignableToTypeOf(In{}.PVZID)).
-					DoAndReturn(func(_ context.Context, recId string) (*entity.Product, error) {
+					GetLastProductByReceptionPVZ(gomock.Any(), gomock.Any()).
+					DoAndReturn(func(_ context.Context, prod entity.Product) (*entity.Product, error) {
 						return &retProduct, nil
 					})
 
 				mockProduct.EXPECT().
-					DeleteProduct(gomock.Any(), gomock.AssignableToTypeOf(In{}.PVZID)).
-					DoAndReturn(func(_ context.Context, pvzId string) error {
+					DeleteProduct(gomock.Any(), gomock.Any()).
+					DoAndReturn(func(_ context.Context, prod entity.Product) error {
 						return nil
 					})
 			},
@@ -98,26 +99,26 @@ func TestDeleteProduct(t *testing.T) {
 				mockPVZ *pvz.MockRepositoryPVZ,
 			) {
 				mockPVZ.EXPECT().
-					GetPVZByID(gomock.Any(), gomock.AssignableToTypeOf(In{}.PVZID)).
-					DoAndReturn(func(_ context.Context, pvzId string) (*entity.PVZ, error) {
+					GetPVZByID(gomock.Any(), gomock.Any()).
+					DoAndReturn(func(_ context.Context, pvz entity.PVZ) (*entity.PVZ, error) {
 						return &retPVZ, nil
 					})
 
 				mockReception.EXPECT().
-					GetLastReceptionPVZ(gomock.Any(), gomock.AssignableToTypeOf(In{}.PVZID)).
-					DoAndReturn(func(_ context.Context, pvzId string) (*entity.Reception, error) {
+					GetLastReceptionPVZ(gomock.Any(), gomock.Any()).
+					DoAndReturn(func(_ context.Context, rec entity.Reception) (*entity.Reception, error) {
 						return &retReception, nil
 					})
 
 				mockProduct.EXPECT().
-					GetLastProductByReceptionPVZ(gomock.Any(), gomock.AssignableToTypeOf(In{}.PVZID)).
-					DoAndReturn(func(_ context.Context, recId string) (*entity.Product, error) {
+					GetLastProductByReceptionPVZ(gomock.Any(), gomock.Any()).
+					DoAndReturn(func(_ context.Context, prod entity.Product) (*entity.Product, error) {
 						return &retProduct, nil
 					})
 
 				mockProduct.EXPECT().
-					DeleteProduct(gomock.Any(), gomock.AssignableToTypeOf(In{}.PVZID)).
-					DoAndReturn(func(_ context.Context, pvzId string) error {
+					DeleteProduct(gomock.Any(), gomock.Any()).
+					DoAndReturn(func(_ context.Context, prod entity.Product) error {
 						return errors.New("some db error")
 					})
 			},
@@ -132,20 +133,20 @@ func TestDeleteProduct(t *testing.T) {
 				mockPVZ *pvz.MockRepositoryPVZ,
 			) {
 				mockPVZ.EXPECT().
-					GetPVZByID(gomock.Any(), gomock.AssignableToTypeOf(In{}.PVZID)).
-					DoAndReturn(func(_ context.Context, pvzId string) (*entity.PVZ, error) {
+					GetPVZByID(gomock.Any(), gomock.Any()).
+					DoAndReturn(func(_ context.Context, pvz entity.PVZ) (*entity.PVZ, error) {
 						return &retPVZ, nil
 					})
 
 				mockReception.EXPECT().
-					GetLastReceptionPVZ(gomock.Any(), gomock.AssignableToTypeOf(In{}.PVZID)).
-					DoAndReturn(func(_ context.Context, pvzId string) (*entity.Reception, error) {
+					GetLastReceptionPVZ(gomock.Any(), gomock.Any()).
+					DoAndReturn(func(_ context.Context, rec entity.Reception) (*entity.Reception, error) {
 						return &retReception, nil
 					})
 
 				mockProduct.EXPECT().
-					GetLastProductByReceptionPVZ(gomock.Any(), gomock.AssignableToTypeOf(In{}.PVZID)).
-					DoAndReturn(func(_ context.Context, recId string) (*entity.Product, error) {
+					GetLastProductByReceptionPVZ(gomock.Any(), gomock.Any()).
+					DoAndReturn(func(_ context.Context, prod entity.Product) (*entity.Product, error) {
 						return nil, errors.New("some db error")
 					})
 			},
@@ -160,20 +161,20 @@ func TestDeleteProduct(t *testing.T) {
 				mockPVZ *pvz.MockRepositoryPVZ,
 			) {
 				mockPVZ.EXPECT().
-					GetPVZByID(gomock.Any(), gomock.AssignableToTypeOf(In{}.PVZID)).
-					DoAndReturn(func(_ context.Context, pvzId string) (*entity.PVZ, error) {
+					GetPVZByID(gomock.Any(), gomock.Any()).
+					DoAndReturn(func(_ context.Context, pvz entity.PVZ) (*entity.PVZ, error) {
 						return &retPVZ, nil
 					})
 
 				mockReception.EXPECT().
-					GetLastReceptionPVZ(gomock.Any(), gomock.AssignableToTypeOf(In{}.PVZID)).
-					DoAndReturn(func(_ context.Context, pvzId string) (*entity.Reception, error) {
+					GetLastReceptionPVZ(gomock.Any(), gomock.Any()).
+					DoAndReturn(func(_ context.Context, rec entity.Reception) (*entity.Reception, error) {
 						return &retReception, nil
 					})
 
 				mockProduct.EXPECT().
-					GetLastProductByReceptionPVZ(gomock.Any(), gomock.AssignableToTypeOf(In{}.PVZID)).
-					DoAndReturn(func(_ context.Context, recId string) (*entity.Product, error) {
+					GetLastProductByReceptionPVZ(gomock.Any(), gomock.Any()).
+					DoAndReturn(func(_ context.Context, prod entity.Product) (*entity.Product, error) {
 						return nil, repository2.ErrProductNotFound
 					})
 			},
@@ -188,14 +189,14 @@ func TestDeleteProduct(t *testing.T) {
 				mockPVZ *pvz.MockRepositoryPVZ,
 			) {
 				mockPVZ.EXPECT().
-					GetPVZByID(gomock.Any(), gomock.AssignableToTypeOf(In{}.PVZID)).
-					DoAndReturn(func(_ context.Context, pvzId string) (*entity.PVZ, error) {
+					GetPVZByID(gomock.Any(), gomock.Any()).
+					DoAndReturn(func(_ context.Context, pvz entity.PVZ) (*entity.PVZ, error) {
 						return &retPVZ, nil
 					})
 
 				mockReception.EXPECT().
-					GetLastReceptionPVZ(gomock.Any(), gomock.AssignableToTypeOf(In{}.PVZID)).
-					DoAndReturn(func(_ context.Context, pvzId string) (*entity.Reception, error) {
+					GetLastReceptionPVZ(gomock.Any(), gomock.Any()).
+					DoAndReturn(func(_ context.Context, rec entity.Reception) (*entity.Reception, error) {
 						return nil, repository2.ErrReceptionNotFound
 					})
 			},
@@ -210,14 +211,14 @@ func TestDeleteProduct(t *testing.T) {
 				mockPVZ *pvz.MockRepositoryPVZ,
 			) {
 				mockPVZ.EXPECT().
-					GetPVZByID(gomock.Any(), gomock.AssignableToTypeOf(In{}.PVZID)).
-					DoAndReturn(func(_ context.Context, pvzId string) (*entity.PVZ, error) {
+					GetPVZByID(gomock.Any(), gomock.Any()).
+					DoAndReturn(func(_ context.Context, pvz entity.PVZ) (*entity.PVZ, error) {
 						return &retPVZ, nil
 					})
 
 				mockReception.EXPECT().
-					GetLastReceptionPVZ(gomock.Any(), gomock.AssignableToTypeOf(In{}.PVZID)).
-					DoAndReturn(func(_ context.Context, pvzId string) (*entity.Reception, error) {
+					GetLastReceptionPVZ(gomock.Any(), gomock.Any()).
+					DoAndReturn(func(_ context.Context, rec entity.Reception) (*entity.Reception, error) {
 						return nil, errors.New("some db error")
 					})
 			},
@@ -232,14 +233,14 @@ func TestDeleteProduct(t *testing.T) {
 				mockPVZ *pvz.MockRepositoryPVZ,
 			) {
 				mockPVZ.EXPECT().
-					GetPVZByID(gomock.Any(), gomock.AssignableToTypeOf(In{}.PVZID)).
-					DoAndReturn(func(_ context.Context, pvzId string) (*entity.PVZ, error) {
+					GetPVZByID(gomock.Any(), gomock.Any()).
+					DoAndReturn(func(_ context.Context, pvz entity.PVZ) (*entity.PVZ, error) {
 						return &retPVZ, nil
 					})
 
 				mockReception.EXPECT().
-					GetLastReceptionPVZ(gomock.Any(), gomock.AssignableToTypeOf(In{}.PVZID)).
-					DoAndReturn(func(_ context.Context, pvzId string) (*entity.Reception, error) {
+					GetLastReceptionPVZ(gomock.Any(), gomock.Any()).
+					DoAndReturn(func(_ context.Context, rec entity.Reception) (*entity.Reception, error) {
 						return &entity.Reception{
 							Status: "close",
 						}, nil
@@ -256,8 +257,8 @@ func TestDeleteProduct(t *testing.T) {
 				mockPVZ *pvz.MockRepositoryPVZ,
 			) {
 				mockPVZ.EXPECT().
-					GetPVZByID(gomock.Any(), gomock.AssignableToTypeOf(In{}.PVZID)).
-					DoAndReturn(func(_ context.Context, pvzId string) (*entity.PVZ, error) {
+					GetPVZByID(gomock.Any(), gomock.Any()).
+					DoAndReturn(func(_ context.Context, pvz entity.PVZ) (*entity.PVZ, error) {
 						return nil, repository2.ErrPVZNotFound
 					})
 			},
@@ -272,8 +273,8 @@ func TestDeleteProduct(t *testing.T) {
 				mockPVZ *pvz.MockRepositoryPVZ,
 			) {
 				mockPVZ.EXPECT().
-					GetPVZByID(gomock.Any(), gomock.AssignableToTypeOf(In{}.PVZID)).
-					DoAndReturn(func(_ context.Context, pvzId string) (*entity.PVZ, error) {
+					GetPVZByID(gomock.Any(), gomock.Any()).
+					DoAndReturn(func(_ context.Context, pvz entity.PVZ) (*entity.PVZ, error) {
 						return nil, errors.New("some db error")
 					})
 			},

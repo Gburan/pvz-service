@@ -4,8 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 
 	repository2 "pvz-service/internal/infrastructure/repository"
+	"pvz-service/internal/logging"
+	"pvz-service/internal/model/entity"
 	usecase2 "pvz-service/internal/usecase"
 	"pvz-service/internal/usecase/contract/repository/product"
 	"pvz-service/internal/usecase/contract/repository/pvz"
@@ -35,36 +38,50 @@ func NewUsecase(
 }
 
 func (u *usecase) Run(ctx context.Context, req In) error {
-	_, err := u.repoPVZ.GetPVZByID(ctx, req.PVZID)
+	slog.DebugContext(ctx, "Call GetPVZByID")
+	_, err := u.repoPVZ.GetPVZByID(ctx, entity.PVZ{
+		Uuid: req.PVZID,
+	})
 	if err != nil {
 		if errors.Is(err, repository2.ErrPVZNotFound) {
-			return fmt.Errorf("%w: %s", usecase2.ErrNotFoundPVZ, req.PVZID)
+			return logging.WrapError(ctx, fmt.Errorf("%w: %s", usecase2.ErrNotFoundPVZ, req.PVZID))
 		}
-		return fmt.Errorf("%w: %s", usecase2.ErrGetPVZByID, req.PVZID)
+		return logging.WrapError(ctx, fmt.Errorf("%w: %s", usecase2.ErrGetPVZByID, req.PVZID))
 	}
 
-	lastReception, err := u.repoReception.GetLastReceptionPVZ(ctx, req.PVZID)
+	slog.DebugContext(ctx, "Call GetLastReceptionPVZ")
+	lastReception, err := u.repoReception.GetLastReceptionPVZ(ctx, entity.Reception{
+		PVZID: req.PVZID,
+	})
 	if err != nil {
 		if errors.Is(err, repository2.ErrReceptionNotFound) {
-			return fmt.Errorf("%w: %s", usecase2.ErrNotFoundReception, req.PVZID)
+			return logging.WrapError(ctx, fmt.Errorf("%w: %s", usecase2.ErrNotFoundReception, req.PVZID))
 		}
-		return fmt.Errorf("%w: %s", usecase2.ErrGetReception, req.PVZID)
+		return logging.WrapError(ctx, fmt.Errorf("%w: %s", usecase2.ErrGetReception, req.PVZID))
 	}
 	if lastReception.Status == statusReceptionDone {
-		return fmt.Errorf("%w: %s", usecase2.ErrNotFoundOpenedReception, req.PVZID)
+		return logging.WrapError(ctx, fmt.Errorf("%w: %s", usecase2.ErrNotFoundOpenedReception, req.PVZID))
 	}
 
-	lastProduct, err := u.repoProduct.GetLastProductByReceptionPVZ(ctx, lastReception.Uuid)
+	slog.DebugContext(ctx, "Call GetLastProductByReceptionPVZ")
+	lastProduct, err := u.repoProduct.GetLastProductByReceptionPVZ(ctx, entity.Product{
+		ReceptionID: lastReception.Uuid,
+	})
 	if err != nil {
 		if errors.Is(err, repository2.ErrProductNotFound) {
-			return fmt.Errorf("%w: %s", usecase2.ErrNotFoundProduct, req.PVZID)
+			return logging.WrapError(ctx, fmt.Errorf("%w: %s", usecase2.ErrNotFoundProduct, req.PVZID))
 		}
-		return fmt.Errorf("%w: %s", usecase2.ErrGetProduct, req.PVZID)
+		return logging.WrapError(ctx, fmt.Errorf("%w: %s", usecase2.ErrGetProduct, req.PVZID))
 	}
 
-	err = u.repoProduct.DeleteProduct(ctx, lastProduct.Uuid)
+	slog.DebugContext(ctx, "Call DeleteProduct")
+	err = u.repoProduct.DeleteProduct(ctx, entity.Product{
+		Uuid: lastProduct.Uuid,
+	})
 	if err != nil {
-		return fmt.Errorf("%w: %s", usecase2.ErrDeleteProduct, req.PVZID)
+		return logging.WrapError(ctx, fmt.Errorf("%w: %s", usecase2.ErrDeleteProduct, req.PVZID))
 	}
+
+	slog.DebugContext(ctx, "Usecase Delete product success")
 	return nil
 }

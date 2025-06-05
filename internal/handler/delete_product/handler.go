@@ -6,11 +6,14 @@ import (
 	"errors"
 	"net/http"
 
+	dto "pvz-service/internal/generated/api/v1/dto/handler"
 	"pvz-service/internal/handler"
+	"pvz-service/internal/logging"
 	usecase2 "pvz-service/internal/usecase"
 	"pvz-service/internal/usecase/delete_product"
 
 	"github.com/go-playground/validator/v10"
+	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 )
 
@@ -26,34 +29,56 @@ func New(usecase usecase, validator *validator.Validate) *createHandler {
 	}
 }
 
+// @Summary Delete product
+// @Description Delete product from PVZ. Requires JWT-Token with Employee role.
+// @ID DeleteProduct
+// @Tags PVZ
+// @Security ApiKeyAuth
+// @Accept json
+// @Produce json
+// @Param pvzId path string true "PVZ ID"
+// @Success 	200 {object} object "Product successfully deleted"
+// @Failure 	400 {object} handler.errorResponse "Invalid PVZ ID or no product to delete"
+// @Failure 	401 {object} handler.errorResponse "Unauthorized"
+// @Failure 	500 {object} handler.errorResponse "Internal server error"
+// @Router 		/pvz/{pvzId}/delete_last_product [post]
 func (h *createHandler) DeleteProduct(w http.ResponseWriter, r *http.Request) {
-	var request deleteProductIn
+	w.Header().Set("Content-Type", "application/json")
+	ctx := r.Context()
+
+	var request dto.DeleteProductIn
 	vars := mux.Vars(r)
-	request.PVZID = vars["pvzId"]
+	pvzID, err := uuid.Parse(vars["pvzId"])
+	if err != nil {
+		handler.RespondWithError(w, ctx, http.StatusBadRequest, "invalid pvz format", err)
+		return
+	}
+	request.PVZID = pvzID
 
 	if err := h.validator.Struct(request); err != nil {
-		handler.RespondWithError(w, http.StatusBadRequest, "validation failed", err)
+		handler.RespondWithError(w, ctx, http.StatusBadRequest, "validation failed", err)
 		return
 	}
 
-	ctx := context.TODO()
-	err := h.usecase.Run(ctx, delete_product.In{
+	ctx = logging.WithLogPVZID(ctx, request.PVZID)
+
+	err = h.usecase.Run(ctx, delete_product.In{
 		PVZID: request.PVZID,
 	})
 	if err != nil {
-		handleUseCaseError(w, err)
+		handleUseCaseError(w, ctx, err)
 		return
 	}
 
 	if err = json.NewEncoder(w).Encode(map[string]string{
 		"message": "success delete product",
 	}); err != nil {
-		handler.RespondWithError(w, http.StatusInternalServerError, "failed to encode response", err)
+		handler.RespondWithError(w, ctx, http.StatusInternalServerError, "failed to encode response", err)
 		return
 	}
 }
 
-func handleUseCaseError(w http.ResponseWriter, err error) {
+func handleUseCaseError(w http.ResponseWriter, ctx context.Context, err error) {
 	statusCode := http.StatusInternalServerError
 	errorMsg := "internal server error"
 
@@ -84,5 +109,5 @@ func handleUseCaseError(w http.ResponseWriter, err error) {
 		statusCode = http.StatusInternalServerError
 	}
 
-	handler.RespondWithError(w, statusCode, errorMsg, err)
+	handler.RespondWithError(w, ctx, statusCode, errorMsg, err)
 }

@@ -1,25 +1,27 @@
 package add_product
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 	"time"
 
+	dto "pvz-service/internal/generated/api/v1/dto/handler"
 	add_product2 "pvz-service/internal/handler/add_product/mocks"
 	"pvz-service/internal/model/entity"
 	usecase2 "pvz-service/internal/usecase"
 	"pvz-service/internal/usecase/add_product"
 
 	"github.com/go-playground/validator/v10"
-	"github.com/golang/mock/gomock"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/mock/gomock"
 )
 
 func TestAddProduct(t *testing.T) {
@@ -39,12 +41,13 @@ func TestAddProduct(t *testing.T) {
 		return false
 	})
 	if err != nil {
-		log.Fatal(err)
+		slog.Error(err.Error())
+		os.Exit(1)
 	}
 
-	reqDTO := addProductIn{
+	reqDTO := dto.AddProductIn{
 		Type:  "электроника",
-		PVZID: "6d132f66-dcfe-493e-965d-95c99e5f325d",
+		PVZID: uuid.New(),
 	}
 	usecaseIn := add_product.In{
 		Type:  reqDTO.Type,
@@ -52,15 +55,15 @@ func TestAddProduct(t *testing.T) {
 	}
 	usecaseOut := add_product.Out{
 		Product: entity.Product{
-			Uuid:        "671353c3-d091-4de8-83f9-983fb6e34ecf",
+			Uuid:        uuid.New(),
 			DateTime:    currTime,
 			Type:        reqDTO.Type,
-			ReceptionID: "1becb717-0ace-41e4-a711-37402f10cb51",
+			ReceptionID: uuid.New(),
 		},
 	}
-	handlerOut := addProductOut{
+	handlerOut := dto.AddProductOut{
 		Uuid:        usecaseOut.Product.Uuid,
-		DateTime:    usecaseOut.Product.DateTime.UTC().Format(time.RFC3339Nano),
+		DateTime:    usecaseOut.Product.DateTime.UTC(),
 		Type:        usecaseOut.Product.Type,
 		ReceptionID: usecaseOut.Product.ReceptionID,
 	}
@@ -70,14 +73,14 @@ func TestAddProduct(t *testing.T) {
 		setupMock     func(*add_product2.Mockusecase)
 		reqBody       string
 		expectedCode  int
-		expected      *addProductOut
+		expected      *dto.AddProductOut
 		expectedError map[string]string
 	}{
 		{
 			name: "successful add product",
 			setupMock: func(mockUsecase *add_product2.Mockusecase) {
 				mockUsecase.EXPECT().
-					Run(context.TODO(), usecaseIn).
+					Run(gomock.Any(), usecaseIn).
 					Return(&usecaseOut, nil)
 			},
 			reqBody: fmt.Sprintf(
@@ -107,19 +110,10 @@ func TestAddProduct(t *testing.T) {
 			},
 		},
 		{
-			name:         "validation failed - invalid uuid",
-			setupMock:    func(mockUsecase *add_product2.Mockusecase) {},
-			reqBody:      fmt.Sprintf(`{"type":"%s","pvzId":"%s"}`, reqDTO.Type, "invalid_uuid"),
-			expectedCode: http.StatusBadRequest,
-			expectedError: map[string]string{
-				"message": "validation failed",
-			},
-		},
-		{
 			name: "usecase error - PVZ not found",
 			setupMock: func(mockUsecase *add_product2.Mockusecase) {
 				mockUsecase.EXPECT().
-					Run(context.TODO(), usecaseIn).
+					Run(gomock.Any(), usecaseIn).
 					Return(nil, usecase2.ErrNotFoundPVZ)
 			},
 			reqBody: fmt.Sprintf(
@@ -136,7 +130,7 @@ func TestAddProduct(t *testing.T) {
 			name: "usecase error - failed to look up for PVZ",
 			setupMock: func(mockUsecase *add_product2.Mockusecase) {
 				mockUsecase.EXPECT().
-					Run(context.TODO(), usecaseIn).
+					Run(gomock.Any(), usecaseIn).
 					Return(nil, usecase2.ErrGetPVZByID)
 			},
 			reqBody: fmt.Sprintf(
@@ -153,7 +147,7 @@ func TestAddProduct(t *testing.T) {
 			name: "usecase error - no receptions at all",
 			setupMock: func(mockUsecase *add_product2.Mockusecase) {
 				mockUsecase.EXPECT().
-					Run(context.TODO(), usecaseIn).
+					Run(gomock.Any(), usecaseIn).
 					Return(nil, usecase2.ErrNotFoundReception)
 			},
 			reqBody: fmt.Sprintf(
@@ -170,7 +164,7 @@ func TestAddProduct(t *testing.T) {
 			name: "usecase error - failed to get reception",
 			setupMock: func(mockUsecase *add_product2.Mockusecase) {
 				mockUsecase.EXPECT().
-					Run(context.TODO(), usecaseIn).
+					Run(gomock.Any(), usecaseIn).
 					Return(nil, usecase2.ErrGetReception)
 			},
 			reqBody: fmt.Sprintf(
@@ -187,7 +181,7 @@ func TestAddProduct(t *testing.T) {
 			name: "usecase error - no opened reception",
 			setupMock: func(mockUsecase *add_product2.Mockusecase) {
 				mockUsecase.EXPECT().
-					Run(context.TODO(), usecaseIn).
+					Run(gomock.Any(), usecaseIn).
 					Return(nil, usecase2.ErrNotFoundOpenedReception)
 			},
 			reqBody: fmt.Sprintf(
@@ -204,7 +198,7 @@ func TestAddProduct(t *testing.T) {
 			name: "usecase error - failed to add product",
 			setupMock: func(mockUsecase *add_product2.Mockusecase) {
 				mockUsecase.EXPECT().
-					Run(context.TODO(), usecaseIn).
+					Run(gomock.Any(), usecaseIn).
 					Return(nil, usecase2.ErrAddProduct)
 			},
 			reqBody: fmt.Sprintf(
@@ -239,7 +233,7 @@ func TestAddProduct(t *testing.T) {
 			assert.Equal(t, tt.expectedCode, w.Code)
 
 			if tt.expected != nil {
-				var response addProductOut
+				var response dto.AddProductOut
 				err := json.NewDecoder(w.Body).Decode(&response)
 				require.NoError(t, err)
 

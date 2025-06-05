@@ -1,0 +1,35 @@
+name: Tests CI
+
+on:
+  push:
+    branches: [ master ]
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.24.2'
+      - name: Install protoc and dependencies
+        run: |
+          sudo apt-get update && sudo apt-get install -y protobuf-compiler
+          go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+          go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
+          go install github.com/pseudomuto/protoc-gen-doc/cmd/protoc-gen-doc@latest
+          echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
+      - name: Create directories
+        run: mkdir -p internal/generated/api/v1/{proto,dto/handler}
+      - name: Generate
+        run: go generate ./...
+      - name: Run Tests with Coverage
+        run: |
+          go list ./... | grep -v -E '(api|integrational|middleware|logging|docs|mocks|cmd|app|config|nower|metrics)(/|$)' | xargs go test -v -coverprofile=coverage.txt
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          slug: Gburan/pvz-service

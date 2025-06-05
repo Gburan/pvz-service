@@ -1,7 +1,6 @@
 package start_reception
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -10,15 +9,17 @@ import (
 	"testing"
 	"time"
 
+	dto "pvz-service/internal/generated/api/v1/dto/handler"
 	start_reception2 "pvz-service/internal/handler/start_reception/mocks"
 	"pvz-service/internal/model/entity"
 	usecase2 "pvz-service/internal/usecase"
 	"pvz-service/internal/usecase/start_reception"
 
 	"github.com/go-playground/validator/v10"
-	"github.com/golang/mock/gomock"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/mock/gomock"
 )
 
 func TestStartReception(t *testing.T) {
@@ -28,8 +29,8 @@ func TestStartReception(t *testing.T) {
 	currTime := time.Now()
 	valid := validator.New(validator.WithRequiredStructEnabled())
 
-	pvzID := "6d132f66-dcfe-493e-965d-95c99e5f325d"
-	reqDTO := startReceptionIn{
+	pvzID := uuid.New()
+	reqDTO := dto.StartReceptionIn{
 		PVZID: pvzID,
 	}
 	usecaseIn := start_reception.In{
@@ -37,15 +38,15 @@ func TestStartReception(t *testing.T) {
 	}
 	usecaseOut := start_reception.Out{
 		Reception: entity.Reception{
-			Uuid:     "671353c3-d091-4de8-83f9-983fb6e34ecf",
+			Uuid:     uuid.New(),
 			DateTime: currTime,
 			PVZID:    pvzID,
 			Status:   "opened",
 		},
 	}
-	handlerOut := startReceptionOut{
+	handlerOut := dto.StartReceptionOut{
 		Id:       usecaseOut.Reception.Uuid,
-		DateTime: usecaseOut.Reception.DateTime.UTC().Format(time.RFC3339Nano),
+		DateTime: usecaseOut.Reception.DateTime.UTC(),
 		PvzId:    usecaseOut.Reception.PVZID,
 		Status:   usecaseOut.Reception.Status,
 	}
@@ -55,14 +56,14 @@ func TestStartReception(t *testing.T) {
 		setupMock     func(*start_reception2.Mockusecase)
 		reqBody       string
 		expectedCode  int
-		expected      *startReceptionOut
+		expected      *dto.StartReceptionOut
 		expectedError map[string]string
 	}{
 		{
 			name: "successful start reception",
 			setupMock: func(mockUsecase *start_reception2.Mockusecase) {
 				mockUsecase.EXPECT().
-					Run(context.TODO(), usecaseIn).
+					Run(gomock.Any(), usecaseIn).
 					Return(&usecaseOut, nil)
 			},
 			reqBody: fmt.Sprintf(
@@ -82,28 +83,10 @@ func TestStartReception(t *testing.T) {
 			},
 		},
 		{
-			name:         "validation failed - empty pvzId",
-			setupMock:    func(mockUsecase *start_reception2.Mockusecase) {},
-			reqBody:      `{"pvzId":""}`,
-			expectedCode: http.StatusBadRequest,
-			expectedError: map[string]string{
-				"message": "validation failed",
-			},
-		},
-		{
-			name:         "validation failed - invalid uuid",
-			setupMock:    func(mockUsecase *start_reception2.Mockusecase) {},
-			reqBody:      `{"pvzId":"invalid_uuid"}`,
-			expectedCode: http.StatusBadRequest,
-			expectedError: map[string]string{
-				"message": "validation failed",
-			},
-		},
-		{
 			name: "usecase error - PVZ not found",
 			setupMock: func(mockUsecase *start_reception2.Mockusecase) {
 				mockUsecase.EXPECT().
-					Run(context.TODO(), usecaseIn).
+					Run(gomock.Any(), usecaseIn).
 					Return(nil, usecase2.ErrNotFoundPVZ)
 			},
 			reqBody: fmt.Sprintf(
@@ -119,7 +102,7 @@ func TestStartReception(t *testing.T) {
 			name: "usecase error - failed to look up for PVZ",
 			setupMock: func(mockUsecase *start_reception2.Mockusecase) {
 				mockUsecase.EXPECT().
-					Run(context.TODO(), usecaseIn).
+					Run(gomock.Any(), usecaseIn).
 					Return(nil, usecase2.ErrGetPVZByID)
 			},
 			reqBody: fmt.Sprintf(
@@ -135,7 +118,7 @@ func TestStartReception(t *testing.T) {
 			name: "usecase error - failed to get reception",
 			setupMock: func(mockUsecase *start_reception2.Mockusecase) {
 				mockUsecase.EXPECT().
-					Run(context.TODO(), usecaseIn).
+					Run(gomock.Any(), usecaseIn).
 					Return(nil, usecase2.ErrGetReception)
 			},
 			reqBody: fmt.Sprintf(
@@ -151,7 +134,7 @@ func TestStartReception(t *testing.T) {
 			name: "usecase error - opened reception already exist",
 			setupMock: func(mockUsecase *start_reception2.Mockusecase) {
 				mockUsecase.EXPECT().
-					Run(context.TODO(), usecaseIn).
+					Run(gomock.Any(), usecaseIn).
 					Return(nil, usecase2.ErrFoundOpenedReception)
 			},
 			reqBody: fmt.Sprintf(
@@ -167,7 +150,7 @@ func TestStartReception(t *testing.T) {
 			name: "usecase error - failed to start reception",
 			setupMock: func(mockUsecase *start_reception2.Mockusecase) {
 				mockUsecase.EXPECT().
-					Run(context.TODO(), usecaseIn).
+					Run(gomock.Any(), usecaseIn).
 					Return(nil, usecase2.ErrStartReception)
 			},
 			reqBody: fmt.Sprintf(
@@ -201,7 +184,7 @@ func TestStartReception(t *testing.T) {
 			assert.Equal(t, tt.expectedCode, w.Code)
 
 			if tt.expected != nil {
-				var response startReceptionOut
+				var response dto.StartReceptionOut
 				err := json.NewDecoder(w.Body).Decode(&response)
 				require.NoError(t, err)
 

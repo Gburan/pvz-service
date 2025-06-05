@@ -5,9 +5,10 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
-	"time"
 
+	dto "pvz-service/internal/generated/api/v1/dto/handler"
 	"pvz-service/internal/handler"
+	"pvz-service/internal/logging"
 	usecase2 "pvz-service/internal/usecase"
 	"pvz-service/internal/usecase/create_pvz"
 
@@ -26,41 +27,56 @@ func New(usecase usecase, validator *validator.Validate) *createHandler {
 	}
 }
 
+// @Summary Create PVZ
+// @Description Create new PVZ. Requires JWT-Token with Employee role.
+// @ID CreatePVZ
+// @Tags PVZ
+// @Security ApiKeyAuth
+// @Accept json
+// @Produce json
+// @Param input body dto.CreatePVZIn true "PVZ creation data"
+// @Success 	200 {object} dto.CreatePVZOut "PVZ successfully created"
+// @Failure 	400 {object} handler.errorResponse "Invalid request or validation failed"
+// @Failure 	401 {object} handler.errorResponse "Unauthorized"
+// @Failure 	500 {object} handler.errorResponse "Internal server error"
+// @Router 		/pvz [post]
 func (h *createHandler) CreatePVZ(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
+	ctx := r.Context()
 
-	var request createPVZIn
+	var request dto.CreatePVZIn
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-		handler.RespondWithError(w, http.StatusBadRequest, "failed to decode request", err)
+		handler.RespondWithError(w, ctx, http.StatusBadRequest, "failed to decode request", err)
 		return
 	}
 
 	if err := h.validator.Struct(request); err != nil {
-		handler.RespondWithError(w, http.StatusBadRequest, "validation failed", err)
+		handler.RespondWithError(w, ctx, http.StatusBadRequest, "validation failed", err)
 		return
 	}
 
-	ctx := context.TODO()
+	ctx = logging.WithLogCity(ctx, request.City)
+
 	result, err := h.usecase.Run(ctx, create_pvz.In{
 		City: request.City,
 	})
 	if err != nil {
-		handleUseCaseError(w, err)
+		handleUseCaseError(w, ctx, err)
 		return
 	}
 
-	out := createPVZOut{
+	out := dto.CreatePVZOut{
 		Uuid:             result.PVZ.Uuid,
-		RegistrationDate: result.PVZ.RegistrationDate.UTC().Format(time.RFC3339Nano),
+		RegistrationDate: result.PVZ.RegistrationDate.UTC(),
 		City:             result.PVZ.City,
 	}
 	if err = json.NewEncoder(w).Encode(out); err != nil {
-		handler.RespondWithError(w, http.StatusInternalServerError, "failed to encode response", err)
+		handler.RespondWithError(w, ctx, http.StatusInternalServerError, "failed to encode response", err)
 		return
 	}
 }
 
-func handleUseCaseError(w http.ResponseWriter, err error) {
+func handleUseCaseError(w http.ResponseWriter, ctx context.Context, err error) {
 	statusCode := http.StatusInternalServerError
 	errorMsg := "internal server error"
 
@@ -70,5 +86,5 @@ func handleUseCaseError(w http.ResponseWriter, err error) {
 		statusCode = http.StatusInternalServerError
 	}
 
-	handler.RespondWithError(w, statusCode, errorMsg, err)
+	handler.RespondWithError(w, ctx, statusCode, errorMsg, err)
 }

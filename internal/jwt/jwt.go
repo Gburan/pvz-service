@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v4"
+	"github.com/google/uuid"
 )
 
 var (
@@ -14,10 +15,10 @@ var (
 	ErrUnexpSignMethod = errors.New("unexpected signing method")
 )
 
-func GenerateToken(secret, role, uid string, expiresIn time.Duration) (string, error) {
+func GenerateToken(secret, role string, uid uuid.UUID, expiresIn time.Duration) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"role": role,
-		"id":   uid,
+		"id":   uid.String(),
 		"iat":  jwt.NewNumericDate(time.Now()),
 		"exp":  jwt.NewNumericDate(time.Now().Add(expiresIn)),
 	})

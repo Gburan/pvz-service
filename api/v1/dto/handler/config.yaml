@@ -1,0 +1,6 @@
+package: dto
+output: ../../internal/generated/api/v1/dto/handler/dto.gen.go
+generate:
+  models: true
+output-options:
+  skip-prune: true

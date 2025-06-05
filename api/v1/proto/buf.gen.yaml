@@ -1,0 +1,12 @@
+version: v1
+managed:
+  enabled: true
+plugins:
+  - name: go
+    out: ../../internal/generated/api/v1/proto/
+    opt:
+      - paths=source_relative
+  - name: go-grpc
+    out: ../../internal/generated/api/v1/proto/
+    opt:
+      - paths=source_relative

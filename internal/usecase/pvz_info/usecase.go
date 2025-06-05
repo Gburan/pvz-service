@@ -4,13 +4,17 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 
 	repository2 "pvz-service/internal/infrastructure/repository"
+	"pvz-service/internal/logging"
 	"pvz-service/internal/model/entity"
 	usecase2 "pvz-service/internal/usecase"
 	"pvz-service/internal/usecase/contract/repository/product"
 	"pvz-service/internal/usecase/contract/repository/pvz"
 	"pvz-service/internal/usecase/contract/repository/reception"
+
+	"github.com/google/uuid"
 )
 
 type usecase struct {
@@ -32,48 +36,51 @@ func NewUsecase(
 }
 
 func (u *usecase) Run(ctx context.Context, req In) ([]Out, error) {
-	offset := (req.Page - 1) * req.Limit
+	offset := calcOffset(req.Page, req.Limit)
 
+	slog.DebugContext(ctx, "Call GetProductsByTimeRange")
 	products, err := u.repoProduct.GetProductsByTimeRange(ctx, req.StartData, req.EndDate)
 	if err != nil {
 		if errors.Is(err, repository2.ErrProductsNotFound) {
-			return nil, fmt.Errorf("%w between %v and %v", usecase2.ErrNotFoundProducts, req.StartData, req.EndDate)
+			return nil, logging.WrapError(ctx, fmt.Errorf("%w between %v and %v", usecase2.ErrNotFoundProducts, req.StartData, req.EndDate))
 		}
-		return nil, fmt.Errorf("%ws between %v and %v", usecase2.ErrGetProducts, req.StartData, req.EndDate)
+		return nil, logging.WrapError(ctx, fmt.Errorf("%ws between %v and %v", usecase2.ErrGetProducts, req.StartData, req.EndDate))
 	}
 
-	uniqueReceptionIds := make(map[string]struct{})
+	uniqueReceptionIds := make(map[uuid.UUID]struct{})
 	for _, prod := range *products {
 		uniqueReceptionIds[prod.ReceptionID] = struct{}{}
 	}
-	sequenceReceptionIds := make([]string, 0, len(uniqueReceptionIds))
+	sequenceReceptionIds := make([]uuid.UUID, 0, len(uniqueReceptionIds))
 	for id := range uniqueReceptionIds {
 		sequenceReceptionIds = append(sequenceReceptionIds, id)
 	}
 
+	slog.DebugContext(ctx, "Call GetReceptionsByIDs")
 	receptions, err := u.repoReception.GetReceptionsByIDs(ctx, sequenceReceptionIds)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %v", usecase2.ErrGetReceptions, err)
+		return nil, logging.WrapError(ctx, fmt.Errorf("%w: %v", usecase2.ErrGetReceptions, err))
 	}
-	uniquePVZIds := make(map[string]struct{})
-	receptionsMap := make(map[string]entity.Reception)
-	pvzsIdsReceptions := make(map[string][]entity.Reception)
+	uniquePVZIds := make(map[uuid.UUID]struct{})
+	receptionsMap := make(map[uuid.UUID]entity.Reception)
+	pvzsIdsReceptions := make(map[uuid.UUID][]entity.Reception)
 	for _, rec := range *receptions {
 		receptionsMap[rec.Uuid] = rec
 		pvzsIdsReceptions[rec.PVZID] = append(pvzsIdsReceptions[rec.PVZID], rec)
 		uniquePVZIds[rec.PVZID] = struct{}{}
 	}
-	sequencePvzIds := make([]string, 0, len(uniquePVZIds))
+	sequencePvzIds := make([]uuid.UUID, 0, len(uniquePVZIds))
 	for id := range uniquePVZIds {
 		sequencePvzIds = append(sequencePvzIds, id)
 	}
 
+	slog.DebugContext(ctx, "Call GetPVZsByIDs")
 	pvzs, err := u.repoPVZ.GetPVZsByIDs(ctx, sequencePvzIds)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %v", usecase2.ErrGetPVZs, err)
+		return nil, logging.WrapError(ctx, fmt.Errorf("%w: %v", usecase2.ErrGetPVZs, err))
 	}
 
-	productsByReception := make(map[string][]entity.Product)
+	productsByReception := make(map[uuid.UUID][]entity.Product)
 	for _, prod := range *products {
 		productsByReception[prod.ReceptionID] = append(productsByReception[prod.ReceptionID], prod)
 	}
@@ -114,5 +121,11 @@ func (u *usecase) Run(ctx context.Context, req In) ([]Out, error) {
 			Receptions: withReceptions.Receptions,
 		}
 	}
+
+	slog.DebugContext(ctx, "Usecase PVZ info success")
 	return out, nil
+}
+
+func calcOffset(page, limit int) int {
+	return (page - 1) * limit
 }

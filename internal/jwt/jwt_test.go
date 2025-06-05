@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v4"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -12,7 +13,7 @@ import (
 func TestGenerateAndParseToken(t *testing.T) {
 	secret := "supersecretkey"
 	role := "employee"
-	uid := "user-123"
+	uid := uuid.New()
 	expiresIn := time.Hour
 
 	t.Run("Generate and parse token successfully", func(t *testing.T) {

@@ -22,7 +22,6 @@ const (
 	Moderator UserRole = "MODERATOR"
 
 	authorisationPrefix = "Bearer "
-	roleKey             = "role"
 )
 
 func hasRequiredRole(userRole UserRole, requiredRoles []UserRole) bool {
@@ -48,23 +47,22 @@ func AuthMiddleware(secret string, requiredRoles []UserRole, next http.Handler) 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		tokenString, err := extractToken(r)
 		if err != nil {
-			handler.RespondWithError(w, http.StatusUnauthorized, "authorization required", err)
+			handler.RespondWithError(w, context.TODO(), http.StatusUnauthorized, "authorization required", err)
 			return
 		}
 
 		role, err := jwt.ParseToken(tokenString, secret)
 		if err != nil {
-			handler.RespondWithError(w, http.StatusUnauthorized, "invalid token", err)
+			handler.RespondWithError(w, context.TODO(), http.StatusUnauthorized, "invalid token", err)
 			return
 		}
 
 		userRole := UserRole(role)
 		if !hasRequiredRole(userRole, requiredRoles) {
-			handler.RespondWithError(w, http.StatusForbidden, "insufficient permissions", ErrNoAcceptableRole)
+			handler.RespondWithError(w, context.TODO(), http.StatusForbidden, "insufficient permissions", ErrNoAcceptableRole)
 			return
 		}
 
-		ctx := context.WithValue(r.Context(), roleKey, role)
-		next.ServeHTTP(w, r.WithContext(ctx))
+		next.ServeHTTP(w, r)
 	})
 }

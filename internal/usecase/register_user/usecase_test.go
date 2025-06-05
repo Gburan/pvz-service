@@ -10,9 +10,10 @@ import (
 	usecase2 "pvz-service/internal/usecase"
 	user "pvz-service/internal/usecase/contract/repository/user/mocks"
 
-	"github.com/golang/mock/gomock"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/mock/gomock"
 )
 
 func TestRegisterUser(t *testing.T) {
@@ -26,7 +27,7 @@ func TestRegisterUser(t *testing.T) {
 	}
 
 	u := entity.User{
-		ID:           "1becb717-0ace-41e4-a711-37402f10cb51",
+		Uuid:         uuid.New(),
 		Email:        reqData.Email,
 		PasswordHash: "hashedpassword",
 		Role:         reqData.Role,
@@ -47,11 +48,11 @@ func TestRegisterUser(t *testing.T) {
 			req:  reqData,
 			setupMock: func(mockUser *user.MockRepositoryUser) {
 				mockUser.EXPECT().
-					GetUserByEmail(gomock.Any(), gomock.AssignableToTypeOf(reqData.Email)).
+					GetUserByEmail(gomock.Any(), gomock.Any()).
 					Return(nil, repository2.ErrUserNotFound)
 
 				mockUser.EXPECT().
-					AddUser(gomock.Any(), reqData.Email, gomock.Any(), reqData.Role).
+					AddUser(gomock.Any(), gomock.Any()).
 					Return(&u, nil)
 			},
 			expectedUser: retUser,
@@ -61,7 +62,7 @@ func TestRegisterUser(t *testing.T) {
 			req:  reqData,
 			setupMock: func(mockUser *user.MockRepositoryUser) {
 				mockUser.EXPECT().
-					GetUserByEmail(gomock.Any(), gomock.AssignableToTypeOf(reqData.Email)).
+					GetUserByEmail(gomock.Any(), gomock.Any()).
 					Return(&u, nil)
 			},
 			expectedError: usecase2.ErrUserAlreadyExist,
@@ -71,7 +72,7 @@ func TestRegisterUser(t *testing.T) {
 			req:  reqData,
 			setupMock: func(mockUser *user.MockRepositoryUser) {
 				mockUser.EXPECT().
-					GetUserByEmail(gomock.Any(), gomock.AssignableToTypeOf(reqData.Email)).
+					GetUserByEmail(gomock.Any(), gomock.Any()).
 					Return(nil, errors.New("some db error"))
 			},
 			expectedError: usecase2.ErrGetUser,
@@ -81,11 +82,11 @@ func TestRegisterUser(t *testing.T) {
 			req:  reqData,
 			setupMock: func(mockUser *user.MockRepositoryUser) {
 				mockUser.EXPECT().
-					GetUserByEmail(gomock.Any(), gomock.AssignableToTypeOf(reqData.Email)).
+					GetUserByEmail(gomock.Any(), gomock.Any()).
 					Return(nil, repository2.ErrUserNotFound)
 
 				mockUser.EXPECT().
-					AddUser(gomock.Any(), reqData.Email, gomock.Any(), reqData.Role).
+					AddUser(gomock.Any(), gomock.Any()).
 					Return(nil, errors.New("some db error"))
 			},
 			expectedError: usecase2.ErrAddUser,

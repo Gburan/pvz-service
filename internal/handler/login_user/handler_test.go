@@ -2,21 +2,22 @@ package login_user
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
+	dto "pvz-service/internal/generated/api/v1/dto/handler"
 	login_user2 "pvz-service/internal/handler/login_user/mocks"
 	"pvz-service/internal/model/entity"
 	usecase2 "pvz-service/internal/usecase"
 	"pvz-service/internal/usecase/login_user"
 
 	"github.com/go-playground/validator/v10"
-	"github.com/golang/mock/gomock"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/mock/gomock"
 )
 
 func TestLoginUser(t *testing.T) {
@@ -35,14 +36,14 @@ func TestLoginUser(t *testing.T) {
 
 	retUser := login_user.Out{
 		User: entity.User{
-			ID:           "6d132f66-dcfe-493e-965d-95c99e5f325d",
+			Uuid:         uuid.New(),
 			Email:        validEmail,
 			PasswordHash: "asdfasdgdsghsghawefasdgfjgdfhsdfgsdfg",
 			Role:         "employee",
 		},
 	}
 
-	successResponse := loginUserOut{
+	successResponse := dto.LoginUserOut{
 		Token: "generated_token",
 	}
 
@@ -51,17 +52,17 @@ func TestLoginUser(t *testing.T) {
 		setupMock     func(*login_user2.Mockusecase)
 		requestBody   interface{}
 		expectedCode  int
-		expected      *loginUserOut
+		expected      *dto.LoginUserOut
 		expectedError map[string]string
 	}{
 		{
 			name: "successful login",
 			setupMock: func(mockUsecase *login_user2.Mockusecase) {
 				mockUsecase.EXPECT().
-					Run(context.TODO(), usecaseIn).
+					Run(gomock.Any(), usecaseIn).
 					Return(&retUser, nil)
 			},
-			requestBody: loginUserIn{
+			requestBody: dto.LoginUserIn{
 				Email:    validEmail,
 				Password: validPassword,
 			},
@@ -71,7 +72,7 @@ func TestLoginUser(t *testing.T) {
 		{
 			name:      "validation failed - empty email",
 			setupMock: func(mockUsecase *login_user2.Mockusecase) {},
-			requestBody: loginUserIn{
+			requestBody: dto.LoginUserIn{
 				Email:    "",
 				Password: validPassword,
 			},
@@ -83,7 +84,7 @@ func TestLoginUser(t *testing.T) {
 		{
 			name:      "validation failed - invalid email format",
 			setupMock: func(mockUsecase *login_user2.Mockusecase) {},
-			requestBody: loginUserIn{
+			requestBody: dto.LoginUserIn{
 				Email:    "invalid_email",
 				Password: validPassword,
 			},
@@ -95,7 +96,7 @@ func TestLoginUser(t *testing.T) {
 		{
 			name:      "validation failed - empty password",
 			setupMock: func(mockUsecase *login_user2.Mockusecase) {},
-			requestBody: loginUserIn{
+			requestBody: dto.LoginUserIn{
 				Email:    validEmail,
 				Password: "",
 			},
@@ -108,10 +109,10 @@ func TestLoginUser(t *testing.T) {
 			name: "usecase error - user not found",
 			setupMock: func(mockUsecase *login_user2.Mockusecase) {
 				mockUsecase.EXPECT().
-					Run(context.TODO(), usecaseIn).
+					Run(gomock.Any(), usecaseIn).
 					Return(nil, usecase2.ErrNotFoundUser)
 			},
-			requestBody: loginUserIn{
+			requestBody: dto.LoginUserIn{
 				Email:    validEmail,
 				Password: validPassword,
 			},
@@ -124,10 +125,10 @@ func TestLoginUser(t *testing.T) {
 			name: "usecase error - get user failed",
 			setupMock: func(mockUsecase *login_user2.Mockusecase) {
 				mockUsecase.EXPECT().
-					Run(context.TODO(), usecaseIn).
+					Run(gomock.Any(), usecaseIn).
 					Return(nil, usecase2.ErrGetUser)
 			},
-			requestBody: loginUserIn{
+			requestBody: dto.LoginUserIn{
 				Email:    validEmail,
 				Password: validPassword,
 			},
@@ -140,10 +141,10 @@ func TestLoginUser(t *testing.T) {
 			name: "usecase error - incorrect password",
 			setupMock: func(mockUsecase *login_user2.Mockusecase) {
 				mockUsecase.EXPECT().
-					Run(context.TODO(), usecaseIn).
+					Run(gomock.Any(), usecaseIn).
 					Return(nil, usecase2.ErrIncorrectPass)
 			},
-			requestBody: loginUserIn{
+			requestBody: dto.LoginUserIn{
 				Email:    validEmail,
 				Password: validPassword,
 			},
@@ -183,7 +184,7 @@ func TestLoginUser(t *testing.T) {
 			assert.Equal(t, tt.expectedCode, w.Code)
 
 			if tt.expected != nil {
-				var response loginUserOut
+				var response dto.LoginUserOut
 				err := json.NewDecoder(w.Body).Decode(&response)
 				require.NoError(t, err)
 				assert.NotEmpty(t, response.Token)

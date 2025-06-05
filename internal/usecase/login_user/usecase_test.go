@@ -10,9 +10,10 @@ import (
 	usecase2 "pvz-service/internal/usecase"
 	user "pvz-service/internal/usecase/contract/repository/user/mocks"
 
-	"github.com/golang/mock/gomock"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/mock/gomock"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -32,7 +33,7 @@ func TestUserAuthUsecase(t *testing.T) {
 	}
 
 	retUser := &entity.User{
-		ID:           "1becb717-0ace-41e4-a711-37402f10cb51",
+		Uuid:         uuid.New(),
 		Email:        reqData.Email,
 		PasswordHash: string(hashedPass),
 		Role:         "user",
@@ -51,7 +52,7 @@ func TestUserAuthUsecase(t *testing.T) {
 			req:  reqData,
 			setupMock: func(mockUser *user.MockRepositoryUser) {
 				mockUser.EXPECT().
-					GetUserByEmail(gomock.Any(), gomock.AssignableToTypeOf(reqData.Email)).
+					GetUserByEmail(gomock.Any(), gomock.Any()).
 					Return(retUser, nil)
 			},
 			expectedUser: out,
@@ -61,7 +62,7 @@ func TestUserAuthUsecase(t *testing.T) {
 			req:  reqData,
 			setupMock: func(mockUser *user.MockRepositoryUser) {
 				mockUser.EXPECT().
-					GetUserByEmail(gomock.Any(), gomock.AssignableToTypeOf(reqData.Email)).
+					GetUserByEmail(gomock.Any(), gomock.Any()).
 					Return(nil, repository2.ErrUserNotFound)
 			},
 			expectedError: usecase2.ErrNotFoundUser,
@@ -71,7 +72,7 @@ func TestUserAuthUsecase(t *testing.T) {
 			req:  reqData,
 			setupMock: func(mockUser *user.MockRepositoryUser) {
 				mockUser.EXPECT().
-					GetUserByEmail(gomock.Any(), gomock.AssignableToTypeOf(reqData.Email)).
+					GetUserByEmail(gomock.Any(), gomock.Any()).
 					Return(nil, errors.New("some db error"))
 			},
 			expectedError: usecase2.ErrGetUser,
@@ -84,7 +85,7 @@ func TestUserAuthUsecase(t *testing.T) {
 			},
 			setupMock: func(mockUser *user.MockRepositoryUser) {
 				mockUser.EXPECT().
-					GetUserByEmail(gomock.Any(), gomock.AssignableToTypeOf(reqData.Email)).
+					GetUserByEmail(gomock.Any(), gomock.Any()).
 					Return(retUser, nil)
 			},
 			expectedError: usecase2.ErrIncorrectPass,

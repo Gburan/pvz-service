@@ -5,13 +5,15 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
-	"time"
 
+	dto "pvz-service/internal/generated/api/v1/dto/handler"
 	"pvz-service/internal/handler"
+	"pvz-service/internal/logging"
 	usecase2 "pvz-service/internal/usecase"
 	"pvz-service/internal/usecase/close_reception"
 
 	"github.com/go-playground/validator/v10"
+	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 )
 
@@ -27,40 +29,60 @@ func New(usecase usecase, validator *validator.Validate) *createHandler {
 	}
 }
 
+// @Summary Close opened reception at PVZ
+// @Description Close current opened reception at PVZ. Requires JWT-Token with Employee role.
+// @ID CloseReception
+// @Tags PVZ
+// @Security ApiKeyAuth
+// @Accept json
+// @Produce json
+// @Param pvzId path string true "PVZ ID"
+// @Success     200 {object} dto.CloseReceptionOut "Reception successfully closed"
+// @Failure 	400 {object} handler.errorResponse "Invalid PVZ ID or no opened reception"
+// @Failure 	401 {object} handler.errorResponse "Unauthorized"
+// @Failure 	500 {object} handler.errorResponse "Internal server error"
+// @Router 		/pvz/{pvzId}/close_last_reception [post]
 func (h *createHandler) CloseReception(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
+	ctx := r.Context()
 
-	var request closeReceptionIn
+	var request dto.CloseReceptionIn
 	vars := mux.Vars(r)
-	request.PVZID = vars["pvzId"]
+	pvzID, err := uuid.Parse(vars["pvzId"])
+	if err != nil {
+		handler.RespondWithError(w, ctx, http.StatusBadRequest, "invalid pvz format", err)
+		return
+	}
+	request.PVZID = pvzID
 
-	if err := h.validator.Struct(request); err != nil {
-		handler.RespondWithError(w, http.StatusBadRequest, "validation failed", err)
+	if err = h.validator.Struct(request); err != nil {
+		handler.RespondWithError(w, ctx, http.StatusBadRequest, "validation failed", err)
 		return
 	}
 
-	ctx := context.TODO()
+	ctx = logging.WithLogPVZID(ctx, request.PVZID)
+
 	result, err := h.usecase.Run(ctx, close_reception.In{
 		PVZID: request.PVZID,
 	})
 	if err != nil {
-		handleUseCaseError(w, err)
+		handleUseCaseError(w, ctx, err)
 		return
 	}
 
-	out := closeReceptionOut{
+	out := dto.CloseReceptionOut{
 		Uuid:     result.Reception.Uuid,
-		DateTime: result.Reception.DateTime.UTC().Format(time.RFC3339Nano),
+		DateTime: result.Reception.DateTime.UTC(),
 		PVZID:    result.Reception.PVZID,
 		Status:   result.Reception.Status,
 	}
 	if err = json.NewEncoder(w).Encode(out); err != nil {
-		handler.RespondWithError(w, http.StatusInternalServerError, "failed to encode response", err)
+		handler.RespondWithError(w, ctx, http.StatusInternalServerError, "failed to encode response", err)
 		return
 	}
 }
 
-func handleUseCaseError(w http.ResponseWriter, err error) {
+func handleUseCaseError(w http.ResponseWriter, ctx context.Context, err error) {
 	var statusCode int
 	errorMsg := "internal server error"
 
@@ -85,5 +107,5 @@ func handleUseCaseError(w http.ResponseWriter, err error) {
 		statusCode = http.StatusInternalServerError
 	}
 
-	handler.RespondWithError(w, statusCode, errorMsg, err)
+	handler.RespondWithError(w, ctx, statusCode, errorMsg, err)
 }

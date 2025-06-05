@@ -1,25 +1,27 @@
 package create_pvz
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 	"time"
 
+	dto "pvz-service/internal/generated/api/v1/dto/handler"
 	create_pvz2 "pvz-service/internal/handler/create_pvz/mocks"
 	"pvz-service/internal/model/entity"
 	usecase2 "pvz-service/internal/usecase"
 	"pvz-service/internal/usecase/create_pvz"
 
 	"github.com/go-playground/validator/v10"
-	"github.com/golang/mock/gomock"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/mock/gomock"
 )
 
 func TestCreatePVZ(t *testing.T) {
@@ -39,10 +41,11 @@ func TestCreatePVZ(t *testing.T) {
 		return false
 	})
 	if err != nil {
-		log.Fatal(err)
+		slog.Error(err.Error())
+		os.Exit(1)
 	}
 
-	reqDTO := createPVZIn{
+	reqDTO := dto.CreatePVZIn{
 		City: "Москва",
 	}
 	usecaseIn := create_pvz.In{
@@ -50,14 +53,14 @@ func TestCreatePVZ(t *testing.T) {
 	}
 	usecaseOut := create_pvz.Out{
 		PVZ: entity.PVZ{
-			Uuid:             "671353c3-d091-4de8-83f9-983fb6e34ecf",
+			Uuid:             uuid.New(),
 			RegistrationDate: currTime,
 			City:             reqDTO.City,
 		},
 	}
-	handlerOut := createPVZOut{
+	handlerOut := dto.CreatePVZOut{
 		Uuid:             usecaseOut.PVZ.Uuid,
-		RegistrationDate: usecaseOut.PVZ.RegistrationDate.UTC().Format(time.RFC3339Nano),
+		RegistrationDate: usecaseOut.PVZ.RegistrationDate.UTC(),
 		City:             usecaseOut.PVZ.City,
 	}
 
@@ -66,14 +69,14 @@ func TestCreatePVZ(t *testing.T) {
 		setupMock     func(*create_pvz2.Mockusecase)
 		reqBody       string
 		expectedCode  int
-		expected      *createPVZOut
+		expected      *dto.CreatePVZOut
 		expectedError map[string]string
 	}{
 		{
 			name: "successful create PVZ",
 			setupMock: func(mockUsecase *create_pvz2.Mockusecase) {
 				mockUsecase.EXPECT().
-					Run(context.TODO(), usecaseIn).
+					Run(gomock.Any(), usecaseIn).
 					Return(&usecaseOut, nil)
 			},
 			reqBody: fmt.Sprintf(
@@ -114,7 +117,7 @@ func TestCreatePVZ(t *testing.T) {
 			name: "usecase error - failed to add PVZ",
 			setupMock: func(mockUsecase *create_pvz2.Mockusecase) {
 				mockUsecase.EXPECT().
-					Run(context.TODO(), usecaseIn).
+					Run(gomock.Any(), usecaseIn).
 					Return(nil, usecase2.ErrAddPVZ)
 			},
 			reqBody: fmt.Sprintf(
@@ -148,7 +151,7 @@ func TestCreatePVZ(t *testing.T) {
 			assert.Equal(t, tt.expectedCode, w.Code)
 
 			if tt.expected != nil {
-				var response createPVZOut
+				var response dto.CreatePVZOut
 				err := json.NewDecoder(w.Body).Decode(&response)
 				require.NoError(t, err)
 

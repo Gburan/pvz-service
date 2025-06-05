@@ -13,9 +13,10 @@ import (
 	pvz "pvz-service/internal/usecase/contract/repository/pvz/mocks"
 	reception "pvz-service/internal/usecase/contract/repository/reception/mocks"
 
-	"github.com/golang/mock/gomock"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/mock/gomock"
 )
 
 func TestPVZInfo(t *testing.T) {
@@ -32,25 +33,25 @@ func TestPVZInfo(t *testing.T) {
 	}
 
 	retPVZ := entity.PVZ{
-		Uuid:             "8a4b3c2d-1e2f-3g4h-5i6j-7k8l9m0n1o2p",
+		Uuid:             uuid.New(),
 		RegistrationDate: currTime.Add(-48 * time.Hour),
 		City:             "Санкт-Петербург",
 	}
 	retReception := entity.Reception{
-		Uuid:     "1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p",
+		Uuid:     uuid.New(),
 		DateTime: currTime.Add(-12 * time.Hour),
 		PVZID:    retPVZ.Uuid,
 		Status:   "completed",
 	}
 	retProducts := []entity.Product{
 		{
-			Uuid:        "p1a2b3c4-5d6e-7f8g-9h0i-j1k2l3m4n5o",
+			Uuid:        uuid.New(),
 			DateTime:    currTime.Add(-6 * time.Hour),
 			Type:        "одежда",
 			ReceptionID: retReception.Uuid,
 		},
 		{
-			Uuid:        "q1w2e3r4-5t6y-7u8i-9o0p-a1s2d3f4g5h",
+			Uuid:        uuid.New(),
 			DateTime:    currTime.Add(-3 * time.Hour),
 			Type:        "электроника",
 			ReceptionID: retReception.Uuid,
@@ -92,12 +93,12 @@ func TestPVZInfo(t *testing.T) {
 					GetProductsByTimeRange(gomock.Any(), reqData.StartData, reqData.EndDate).
 					Return(&retProducts, nil)
 
-				receptionIDs := []string{retReception.Uuid}
+				receptionIDs := []uuid.UUID{retReception.Uuid}
 				mockReception.EXPECT().
 					GetReceptionsByIDs(gomock.Any(), receptionIDs).
 					Return(&[]entity.Reception{retReception}, nil)
 
-				pvzIDs := []string{retPVZ.Uuid}
+				pvzIDs := []uuid.UUID{retPVZ.Uuid}
 				mockPVZ.EXPECT().
 					GetPVZsByIDs(gomock.Any(), pvzIDs).
 					Return(&[]entity.PVZ{retPVZ}, nil)
@@ -121,12 +122,12 @@ func TestPVZInfo(t *testing.T) {
 					GetProductsByTimeRange(gomock.Any(), reqData.StartData, reqData.EndDate).
 					Return(&retProducts, nil)
 
-				receptionIDs := []string{retReception.Uuid}
+				receptionIDs := []uuid.UUID{retReception.Uuid}
 				mockReception.EXPECT().
 					GetReceptionsByIDs(gomock.Any(), receptionIDs).
 					Return(&[]entity.Reception{retReception}, nil)
 
-				pvzIDs := []string{retPVZ.Uuid}
+				pvzIDs := []uuid.UUID{retPVZ.Uuid}
 				mockPVZ.EXPECT().
 					GetPVZsByIDs(gomock.Any(), pvzIDs).
 					Return(&[]entity.PVZ{retPVZ}, nil)
@@ -150,12 +151,12 @@ func TestPVZInfo(t *testing.T) {
 					GetProductsByTimeRange(gomock.Any(), reqData.StartData, reqData.EndDate).
 					Return(&retProducts, nil)
 
-				receptionIDs := []string{retReception.Uuid}
+				receptionIDs := []uuid.UUID{retReception.Uuid}
 				mockReception.EXPECT().
 					GetReceptionsByIDs(gomock.Any(), receptionIDs).
 					Return(&[]entity.Reception{retReception}, nil)
 
-				pvzIDs := []string{retPVZ.Uuid}
+				pvzIDs := []uuid.UUID{retPVZ.Uuid}
 				mockPVZ.EXPECT().
 					GetPVZsByIDs(gomock.Any(), pvzIDs).
 					Return(&[]entity.PVZ{retPVZ}, nil)
@@ -220,12 +221,12 @@ func TestPVZInfo(t *testing.T) {
 					GetProductsByTimeRange(gomock.Any(), reqData.StartData, reqData.EndDate).
 					Return(&retProducts, nil)
 
-				receptionIDs := []string{retReception.Uuid}
+				receptionIDs := []uuid.UUID{retReception.Uuid}
 				mockReception.EXPECT().
 					GetReceptionsByIDs(gomock.Any(), receptionIDs).
 					Return(&[]entity.Reception{retReception}, nil)
 
-				pvzIDs := []string{retPVZ.Uuid}
+				pvzIDs := []uuid.UUID{retPVZ.Uuid}
 				mockPVZ.EXPECT().
 					GetPVZsByIDs(gomock.Any(), pvzIDs).
 					Return(nil, errors.New("some db error"))

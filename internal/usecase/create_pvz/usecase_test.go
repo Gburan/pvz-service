@@ -10,9 +10,10 @@ import (
 	usecase2 "pvz-service/internal/usecase"
 	pvz "pvz-service/internal/usecase/contract/repository/pvz/mocks"
 
-	"github.com/golang/mock/gomock"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/mock/gomock"
 )
 
 func TestCreatePVZ(t *testing.T) {
@@ -26,7 +27,7 @@ func TestCreatePVZ(t *testing.T) {
 	}
 
 	retPVZ := entity.PVZ{
-		Uuid:             "1becb717-0ace-41e4-a711-37401becb717",
+		Uuid:             uuid.New(),
 		RegistrationDate: currTime,
 		City:             reqData.City,
 	}
@@ -47,8 +48,8 @@ func TestCreatePVZ(t *testing.T) {
 				mockPVZ *pvz.MockRepositoryPVZ,
 			) {
 				mockPVZ.EXPECT().
-					SavePVZ(gomock.Any(), gomock.AssignableToTypeOf(In{}.City)).
-					DoAndReturn(func(_ context.Context, pvzId string) (*entity.PVZ, error) {
+					SavePVZ(gomock.Any(), gomock.Any()).
+					DoAndReturn(func(_ context.Context, pvz entity.PVZ) (*entity.PVZ, error) {
 						return &retPVZ, nil
 					})
 			},
@@ -61,8 +62,8 @@ func TestCreatePVZ(t *testing.T) {
 				mockPVZ *pvz.MockRepositoryPVZ,
 			) {
 				mockPVZ.EXPECT().
-					SavePVZ(gomock.Any(), gomock.AssignableToTypeOf(In{}.City)).
-					DoAndReturn(func(_ context.Context, pvzId string) (*entity.PVZ, error) {
+					SavePVZ(gomock.Any(), gomock.Any()).
+					DoAndReturn(func(_ context.Context, pvz entity.PVZ) (*entity.PVZ, error) {
 						return nil, errors.New("some db error")
 					})
 			},

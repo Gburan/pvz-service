@@ -4,8 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 
 	repository2 "pvz-service/internal/infrastructure/repository"
+	"pvz-service/internal/logging"
+	"pvz-service/internal/model/entity"
 	usecase2 "pvz-service/internal/usecase"
 	"pvz-service/internal/usecase/contract/repository/user"
 
@@ -23,24 +26,34 @@ func NewUsecase(repoUser user.RepositoryUser) *usecase {
 }
 
 func (u *usecase) Run(ctx context.Context, req In) (*Out, error) {
-	exist, err := u.repoUser.GetUserByEmail(ctx, req.Email)
+	slog.DebugContext(ctx, "Call GetUserByEmail")
+	exist, err := u.repoUser.GetUserByEmail(ctx, entity.User{
+		Email: req.Email,
+	})
 	if err != nil && !errors.Is(err, repository2.ErrUserNotFound) {
-		return nil, fmt.Errorf("%w: %v", usecase2.ErrGetUser, err)
+		return nil, logging.WrapError(ctx, fmt.Errorf("%w: %v", usecase2.ErrGetUser, err))
 	}
 	if exist != nil {
-		return nil, fmt.Errorf("%w: %s", usecase2.ErrUserAlreadyExist, req.Email)
+		return nil, logging.WrapError(ctx, fmt.Errorf("%w: %s", usecase2.ErrUserAlreadyExist, req.Email))
 	}
 
+	slog.DebugContext(ctx, "generateHashPass")
 	hashedPass, err := generateHashPass(req.Password)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %v", usecase2.ErrGenHashedPass, err)
+		return nil, logging.WrapError(ctx, fmt.Errorf("%w: %v", usecase2.ErrGenHashedPass, err))
 	}
 
-	record, err := u.repoUser.AddUser(ctx, req.Email, hashedPass, req.Role)
+	slog.DebugContext(ctx, "Call AddUser")
+	record, err := u.repoUser.AddUser(ctx, entity.User{
+		Email:        req.Email,
+		PasswordHash: hashedPass,
+		Role:         req.Role,
+	})
 	if err != nil {
-		return nil, fmt.Errorf("%w: %v", usecase2.ErrAddUser, err)
+		return nil, logging.WrapError(ctx, fmt.Errorf("%w: %v", usecase2.ErrAddUser, err))
 	}
 
+	slog.DebugContext(ctx, "Usecase Register user success")
 	return &Out{User: *record}, nil
 }
 

@@ -1,0 +1,514 @@
+basePath: /api/v1
+definitions:
+  dto.AddProductIn:
+    properties:
+      pvzId:
+        type: string
+      type:
+        type: string
+    required:
+    - pvzId
+    - type
+    type: object
+  dto.AddProductOut:
+    properties:
+      dateTime:
+        type: string
+      id:
+        type: string
+      receptionId:
+        type: string
+      type:
+        type: string
+    type: object
+  dto.CloseReceptionOut:
+    properties:
+      datetime:
+        type: string
+      id:
+        type: string
+      pvzId:
+        type: string
+      status:
+        type: string
+    type: object
+  dto.CreatePVZIn:
+    properties:
+      city:
+        type: string
+    required:
+    - city
+    type: object
+  dto.CreatePVZOut:
+    properties:
+      city:
+        type: string
+      id:
+        type: string
+      registrationDate:
+        type: string
+    type: object
+  dto.DummyLoginIn:
+    properties:
+      role:
+        type: string
+    required:
+    - role
+    type: object
+  dto.DummyLoginOut:
+    properties:
+      token:
+        type: string
+    type: object
+  dto.LoginUserIn:
+    properties:
+      email:
+        type: string
+      password:
+        type: string
+    required:
+    - email
+    - password
+    type: object
+  dto.LoginUserOut:
+    properties:
+      token:
+        type: string
+    type: object
+  dto.PvzInfoIn:
+    properties:
+      endDate:
+        type: string
+      limit:
+        type: integer
+      page:
+        type: integer
+      startDate:
+        type: string
+    required:
+    - endDate
+    - limit
+    - page
+    - startDate
+    type: object
+  dto.PvzInfoOut:
+    properties:
+      pvz:
+        $ref: '#/definitions/dto.PvzInfoPvzOut'
+      receptions:
+        items:
+          $ref: '#/definitions/dto.PvzInfoReceptionWithProductsOut'
+        type: array
+    type: object
+  dto.PvzInfoProductOut:
+    properties:
+      dateTime:
+        type: string
+      id:
+        type: string
+      receptionId:
+        type: string
+      type:
+        type: string
+    type: object
+  dto.PvzInfoPvzOut:
+    properties:
+      city:
+        type: string
+      id:
+        type: string
+      registrationDate:
+        type: string
+    type: object
+  dto.PvzInfoReceptionOut:
+    properties:
+      dateTime:
+        type: string
+      id:
+        type: string
+      pvzId:
+        type: string
+      status:
+        type: string
+    type: object
+  dto.PvzInfoReceptionWithProductsOut:
+    properties:
+      products:
+        items:
+          $ref: '#/definitions/dto.PvzInfoProductOut'
+        type: array
+      reception:
+        $ref: '#/definitions/dto.PvzInfoReceptionOut'
+    type: object
+  dto.RegisterUserIn:
+    properties:
+      email:
+        type: string
+      password:
+        type: string
+      role:
+        type: string
+    required:
+    - email
+    - password
+    - role
+    type: object
+  dto.RegisterUserOut:
+    properties:
+      email:
+        type: string
+      id:
+        type: string
+      role:
+        type: string
+    type: object
+  dto.StartReceptionIn:
+    properties:
+      pvzId:
+        type: string
+    required:
+    - pvzId
+    type: object
+  dto.StartReceptionOut:
+    properties:
+      datetime:
+        type: string
+      id:
+        type: string
+      pvzId:
+        type: string
+      status:
+        type: string
+    type: object
+  handler.errorResponse:
+    properties:
+      details:
+        type: string
+      message:
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  description: This is a service for working with PVZ.
+  title: PVZ service
+  version: "1.0"
+paths:
+  /dummyLogin:
+    post:
+      consumes:
+      - application/json
+      description: Get JWT token for testing purposes
+      operationId: DummyLogin
+      parameters:
+      - description: Login credentials
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/dto.DummyLoginIn'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Successfully logged in
+          schema:
+            $ref: '#/definitions/dto.DummyLoginOut'
+        "400":
+          description: Invalid request or validation failed
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+      summary: Dummy login
+      tags:
+      - User
+  /login:
+    post:
+      consumes:
+      - application/json
+      description: Authenticate user and get JWT token
+      operationId: LoginUser
+      parameters:
+      - description: Login credentials
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/dto.LoginUserIn'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Successfully logged in
+          schema:
+            $ref: '#/definitions/dto.LoginUserOut'
+        "400":
+          description: Invalid credentials or validation failed
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+      summary: User login
+      tags:
+      - User
+  /products:
+    post:
+      consumes:
+      - application/json
+      description: add product to PVZ's reception. Requires JWT-Token with Employee
+        role.
+      operationId: AddProduct
+      parameters:
+      - description: request params
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/dto.AddProductIn'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Product successfully added
+          schema:
+            $ref: '#/definitions/dto.AddProductOut'
+        "400":
+          description: Invalid request body or validation failure
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "401":
+          description: Unauthorized - Invalid or missing JWT token
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Add a product to a PVZ reception
+      tags:
+      - PVZ
+  /pvz:
+    get:
+      consumes:
+      - application/json
+      description: Get PVZ list with receptions and products in given time period
+      operationId: GetPVZInfo
+      parameters:
+      - description: Time period and pagination parameters
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/dto.PvzInfoIn'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of PVZs with receptions and products
+          schema:
+            items:
+              $ref: '#/definitions/dto.PvzInfoOut'
+            type: array
+        "400":
+          description: Invalid parameters or no data found
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Get PVZ information
+      tags:
+      - PVZ
+    post:
+      consumes:
+      - application/json
+      description: Create new PVZ. Requires JWT-Token with Employee role.
+      operationId: CreatePVZ
+      parameters:
+      - description: PVZ creation data
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CreatePVZIn'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: PVZ successfully created
+          schema:
+            $ref: '#/definitions/dto.CreatePVZOut'
+        "400":
+          description: Invalid request or validation failed
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Create PVZ
+      tags:
+      - PVZ
+  /pvz/{pvzId}/close_last_reception:
+    post:
+      consumes:
+      - application/json
+      description: Close current opened reception at PVZ. Requires JWT-Token with
+        Employee role.
+      operationId: CloseReception
+      parameters:
+      - description: PVZ ID
+        in: path
+        name: pvzId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Reception successfully closed
+          schema:
+            $ref: '#/definitions/dto.CloseReceptionOut'
+        "400":
+          description: Invalid PVZ ID or no opened reception
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Close opened reception at PVZ
+      tags:
+      - PVZ
+  /pvz/{pvzId}/delete_last_product:
+    post:
+      consumes:
+      - application/json
+      description: Delete product from PVZ. Requires JWT-Token with Employee role.
+      operationId: DeleteProduct
+      parameters:
+      - description: PVZ ID
+        in: path
+        name: pvzId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Product successfully deleted
+          schema:
+            type: object
+        "400":
+          description: Invalid PVZ ID or no product to delete
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Delete product
+      tags:
+      - PVZ
+  /receptions:
+    post:
+      consumes:
+      - application/json
+      description: Create new opened reception at PVZ
+      operationId: StartReception
+      parameters:
+      - description: PVZ ID
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/dto.StartReceptionIn'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Reception successfully started
+          schema:
+            $ref: '#/definitions/dto.StartReceptionOut'
+        "400":
+          description: PVZ not found or opened reception exists
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Start new reception
+      tags:
+      - PVZ
+  /register:
+    post:
+      consumes:
+      - application/json
+      description: Create new user account
+      operationId: RegisterUser
+      parameters:
+      - description: User registration data
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/dto.RegisterUserIn'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: User successfully registered
+          schema:
+            $ref: '#/definitions/dto.RegisterUserOut'
+        "400":
+          description: Validation failed or user already exists
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/handler.errorResponse'
+      summary: Register new user
+      tags:
+      - User
+securityDefinitions:
+  ApiKeyAuth:
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

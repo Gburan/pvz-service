@@ -1,17 +1,29 @@
 version: "3.9"
 
-# docker-compose up -d
-# docker-compose down
-# docker rm $(docker ps -a -q) && docker volume prune -f
-
-# psql -h localhost -U postgres -d pvz-service
-# \dt
-# SELECT * FROM pvz;
-# SELECT * FROM reception;
-# SELECT * FROM product;
-# SELECT * FROM pvzuser;
-
 services:
+
+  prometheus:
+    image: prom/prometheus:v3.4.0
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - "./metrics/prometheus:/etc/prometheus"
+    networks:
+      - app_network
+
+  grafana:
+    image: grafana/grafana:12.0.1
+    container_name: grafana
+    links:
+      - prometheus:prometheus
+    ports:
+      - "3030:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    networks:
+      - app_network
 
   pvz-service:
     build:
@@ -24,8 +36,13 @@ services:
     depends_on:
       pvz-service-db:
         condition: service_healthy
+    volumes:
+      - ./logs:/var/log/myapp
+    networks:
+      - app_network
     ports:
       - "8080:8080"
+      - "3000:3000"
 
   pvz-service-db:
     image: postgres:16-alpine
@@ -41,5 +58,11 @@ services:
       timeout: 5s
       retries: 5
       start_period: 10s
+    networks:
+      - app_network
     expose:
       - "5432"
+
+networks:
+  app_network:
+    name: app_network
